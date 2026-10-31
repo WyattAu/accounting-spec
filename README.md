@@ -34,7 +34,7 @@ cd lean
 lean src/Accounting.lean
 ```
 
-No output means every proof checked. Any `error:` means a theorem is false ;
+No output means every proof checked. Any `error:` means a theorem is false;
 which means a crate is wrong.
 
 ## Licence
