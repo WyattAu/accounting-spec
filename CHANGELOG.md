@@ -12,6 +12,13 @@
   `conversion_target_balanced`, `conversion_preserves`; zero sorries,
   zero dependencies.
 
+### Iteration 5
+
+- SPEC §5: Theorem 5.1b (two-sided rounding error bound, mode-robust),
+  the VAT-error corollary, and the restatement definition behind 5.2.
+- Lean: `roundHalfUp_error`, `vat_error_bound`, `restate`,
+  `restate_sign_symmetry`; zero sorries, zero dependencies.
+
 ## [0.1.0] - 2026-10-28
 
 Initial release: the formal specification (SPEC.md) and Lean 4 proofs for

@@ -117,13 +117,37 @@ rate `r < 1000`:
 as `gross − vat`, never independently; the theorem says this is not an
 optimisation but the definition of correctness.
 
+**Theorem 5.1b** (Rounding error bound). For any `n` and any `d > 0`,
+half-up rounding lands within half a minor unit of the exact quotient:
+
+    −d/2 ≤ d · round(n, d) − n ≤ d/2
+
+Two-sided — the form the drift bound (Theorem 5.3) composes. The bound
+is mode-robust: every nearest-rounding mode satisfies it, so switching
+`TieMode` cannot leak more than half a minor unit per rounding.
+
+**Corollary** (VAT error bound). The VAT leg of a split is within
+`(1000 + rate)/2` minor units of the exact product, and the net absorbs
+the difference exactly (by 5.1).
+
+**Rust mapping**: `invoice_kit::split_vat_inclusive` (in i128, via the
+shared `TieMode` from `vat-rules`).
+
 **Theorem 5.2** (Sign symmetry). For any amount `a` and rate `r`:
 
     restate(−a, r) = −restate(a, r)
 
+The proof is definitional, and that is the finding: `restate` is
+specified as magnitude-then-sign,
+
+    restate(a, d) := sign(a) · (⌊|a| + d/2⌋ / d in half-up form)
+
+Applying the raw half-up formula to signed input breaks symmetry at ties
+(`(−1 + 1)/2 = 0 ≠ −1` at `d = 2`). The definition is the guarantee.
+
 **Rust mapping**: `fx_kit::Rate::restate` rounds the magnitude and restores
-the sign. A signed-toward-zero rounding would break this at ties; the
-theorem pins the guarantee.
+the sign; the theorem pins that this construction, not extra code, is
+what makes credit notes restate symmetrically.
 
 **Theorem 5.3** (Scope drift bound). For `n` lines and `k` jurisdictions:
 

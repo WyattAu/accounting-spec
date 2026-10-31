@@ -582,3 +582,55 @@ theorem conversion_preserves (cs : List CurrencyId)
   rw [amountsIn_append, List.sum_append, h3, h2]
   simp
 
+/-! ## Section 8: Rounding bounds and sign symmetry (Iteration 5)
+
+Half-up on magnitude is the de-facto VAT norm (Stripe "rounds half up",
+DIN 1333 commercial rounding, SAP per-line condition rounding); ISO 4217
+fixes only the minor-unit scale, so the mode is policy — but the *error
+bound* is mode-robust: every nearest-rounding mode satisfies it. The
+theorem below is the one the drift bound (Iteration 6) composes. -/
+
+/-- **Theorem 5.1b (rounding error bound)**: half-up rounding of `n/d`
+lands within `d/2` minor units of the exact quotient — two-sided, which
+is the form the drift bound composes. Holds for every `n` with `d > 0`
+(Euclidean division keeps the remainder in `[0, d)`); the `n ≥ 0`
+contract lives in the Rust side, which rounds the magnitude and restores
+the sign. -/
+theorem roundHalfUp_error (n d : Int) (hd : 0 < d) :
+    -(d / 2) ≤ d * roundHalfUp n d - n ∧ d * roundHalfUp n d - n ≤ d / 2 := by
+  have hd0 : d ≠ 0 := by omega
+  have h2 := Int.emod_nonneg (n + d / 2) hd0
+  have h3 := Int.emod_lt_of_pos (n + d / 2) hd
+  have h1 := Int.emod_add_mul_ediv (n + d / 2) d
+  have hdq : d * ((n + d / 2) / d) = n + d / 2 - (n + d / 2) % d := by
+    generalize hm : d * ((n + d / 2) / d) = m at h1 ⊢
+    omega
+  simp only [roundHalfUp]
+  constructor <;> rw [hdq] <;> omega
+
+/-- **Corollary (VAT error bound)**: the VAT leg of a split is the
+half-up rounding of `gross · rate / (1000 + rate)` — so it is within
+`(1000 + rate) / 2` minor units of the exact product, and `net = gross −
+vat` absorbs the difference exactly (Theorem 5.1). -/
+theorem vat_error_bound (gross rate : Int) (hr : 0 < 1000 + rate) :
+    -((1000 + rate) / 2)
+      ≤ (1000 + rate) * (splitVatInclusive gross rate).vat - gross * rate
+    ∧ (1000 + rate) * (splitVatInclusive gross rate).vat - gross * rate
+      ≤ (1000 + rate) / 2 :=
+  roundHalfUp_error (gross * rate) (1000 + rate) hr
+
+/-- `fx_kit::Rate::restate` — round the magnitude half-up, restore the
+sign. The definition is the point: magnitude-then-sign is *what makes*
+the sign-symmetry theorem true. Applying the raw formula to signed
+input breaks it at ties (`(-1 + 1) / 2 = 0 ≠ -1 = -((1 + 1) / 2)` at
+`d = 2`). -/
+def restate (n d : Int) : Int :=
+  Int.sign n * (((n.natAbs : Int) + d / 2) / d)
+
+/-- **Theorem 5.2 (sign symmetry)**: restating a negated amount is the
+negation of the restated amount. A signed-toward-zero rounding would
+break this at ties; the magnitude-then-sign definition cannot. -/
+theorem restate_sign_symmetry (n d : Int) : restate (-n) d = -restate n d := by
+  simp only [restate, Int.sign_neg, Int.natAbs_neg]
+  rw [Int.neg_mul]
+

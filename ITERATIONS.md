@@ -148,6 +148,61 @@ on magnitude), sign symmetry, VAT split bounds, the corrected per-line
 drift bound (⌈n·k/2⌉ in §5 is loose — tight is k·⌊n/2⌋ per rate), then
 the symbolic hash chain.
 
+## Iteration 5 (2026-10-31)
+
+**Research**: rounding practice survey — Stripe ("rounds tax half up",
+per line item before summing), Xero (per-line, half-to-even + manual
+rounding line), Odoo (`round_per_line` default vs `round_globally`,
+cash-rounding loss accounts), QuickBooks (per-line, filing drift
+documented by TaxJar), SAP (commercial rounding, documented
+rounding-difference GL accounts). Standards: ISO 4217 fixes scale only;
+EU VAT Directive 2006/112/EC + Reg 282/2011 mandate no union mode;
+HMRC Notice 700 §17.5 permits round-*down* per line; half-up on
+magnitude is de-facto commercial norm (DIN 1333, Java `HALF_UP`).
+Summation-rounding analysis: Higham *Accuracy and Stability of
+Numerical Algorithms* §3.1, Goldberg CACM 31 (1991) — per-line tax
+drift is a corollary of standard analysis, no invoice-specific paper
+exists. Lean 4 core: `/` is Euclidean (`Int.ediv`), remainder
+`0 ≤ r < |d|`; `omega` handles division by *literal* denominators only
+and **rejects nonlinear monomials** (`d * (x / d)` — the atom-abstracted
+product kills the fact); `Int.emod_add_mul_ediv`,
+`Int.emod_nonneg`, `Int.emod_lt_of_pos`, `Int.add_sub_cancel` are the
+working core set.
+
+**Finding**: the mode is policy but the *bound is mode-robust* — every
+nearest-rounding mode keeps each rounding within half a minor unit,
+which is what makes per-line drift composable at all. And the SPEC's
+⌈n·k/2⌉ drift claim (§5.3) is loose; the tight bound is k·⌊n/2⌋ — that
+correction is Iteration 6's deliverable.
+
+**Spec**: §5 gains Theorem 5.1b (two-sided rounding error bound), the
+VAT-error corollary, and the restatement definition (magnitude-then-sign
+is *the proof* of 5.2, not an implementation detail).
+
+**Lean proof**: `roundHalfUp_error` (via `Int.emod_add_mul_ediv` +
+`generalize` of the nonlinear monomial — see notes),
+`vat_error_bound` (definitional corollary — the split's vat *is*
+`roundHalfUp (gross·rate) (1000+rate)`), `restate`,
+`restate_sign_symmetry` (`Int.sign_neg` + `Int.natAbs_neg` +
+`Int.neg_mul`). Zero sorries, `lake build` green.
+
+**Proof-engineering notes**:
+- omega rejects *linear-in-atoms but nonlinear-in-variables* facts
+  (`r + d·q = s`): abstract the monomial with `generalize hm : d * (x/d)
+  = m at h1 ⊢`, then everything is linear and omega closes.
+- `(by omega)` inside a lemma application whose implicit argument is
+  still a metavariable elaborates against `?b ≠ 0` — unconstrained, it
+  fails with a junk counterexample and silently plants `sorry`. Bind
+  the implicit first (`have hd0 : d ≠ 0 := by omega`), then pass it.
+- `rw [← h4]` on a goal containing the *same subterm inside another
+  operator* (`%`) rewrites in unintended positions — prefer proving a
+  standalone `hdq` equation and rewriting with that.
+- `Int.neg_mul` closes sign-symmetry after `sign_neg`/`natAbs_neg`.
+
+**Next**: the per-line vs per-document drift bound — correct §5.3 to
+the tight form (`2·|D| ≤ n` per rate, `k·⌊n/2⌋` across `k` rates) and
+prove it; then the symbolic hash chain.
+
 ## Iteration 3 (2026-10-31)
 
 **Research**: Ellerman's mathematical treatment of double-entry
