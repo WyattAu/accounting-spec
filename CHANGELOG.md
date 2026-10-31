@@ -12,6 +12,14 @@
   `conversion_target_balanced`, `conversion_preserves`; zero sorries,
   zero dependencies.
 
+### Iteration 7
+
+- SPEC §6 replaced: the symbolic hash chain is now specified and
+  proved — injective step hash, valid append, tamper localization
+  (first-divergence, linear-chain-specific). The `True := trivial`
+  placeholder is gone.
+- Integrator note: `ledger-pg` `CHAIN DEBUG` eprintln to remove.
+
 ### Iteration 6
 
 - SPEC §5.3 corrected: the drift bound is `2·|per_line − per_doc| ≤ n`

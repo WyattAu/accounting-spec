@@ -166,19 +166,42 @@ remainder is at most `d − 1`. Attained: two lines each with an exact
 `PerDocument`. The property test bounded the drift; the theorem pins the
 tight constant.
 
-## 6. The hash chain
+## 6. The hash chain — symbolic model (Iteration 7)
 
-A **hash chain** over entries `e₁, e₂, …` with previous hash `h₀`:
+A chain entry is a pair `(payload, prevHash)`; the chained hash is
 
-    hᵢ := SHA256(canonical(eᵢ) ∥ hᵢ₋₁)
+    stepHash(e) := SHA256(canonical(e.payload) ∥ e.prevHash)
 
-**Theorem 6.1** (Tamper detection). If `hⱼ` is the first hash that does not
-match its recomputation, then entry `eⱼ` (or any earlier entry) has been
-altered since its hash was committed.
+modelled symbolically as an injective function on the canonical pair
+(the Toychain axiom shape — Pîrlea & Sergey, CPP 2018). Injectivity
+idealizes collision resistance; no preimage axiom is needed, because
+detection never inverts a hash.
 
-**Rust mapping**: `ledger_pg::verify_chain`. The theorem is conditional on
-SHA-256's collision resistance; stated in Lean as a trusted assumption,
-not proven from first principles (which would be a paper, not a proof).
+**Theorem 6.2** (Valid append). An entry claiming the chain's end hash
+extends the chain validly:
+
+    validChain(h, es) ∧ e'.prevHash = chainEnd(h, es)
+      → validChain(h, es ++ [e'])
+
+**Theorem 6.3** (Tamper localization). Replacing the head entry of a
+valid chain continuation with a different entry — whatever previous
+hash the attacker claims — invalidates it:
+
+    validChain(stepHash(e), r :: rs) ∧ stepHash(e') ≠ stepHash(e)
+      → ¬validChain(stepHash(e'), r :: rs)
+
+This is the first-divergence localization a linear chain gives for
+free: the mismatch pinpoint's the tampered position (a Merkle root
+mismatch only says "something", not "where"). Scope: tampering with
+the *last* entry changes only the end hash, whose detection requires
+the anchored head — stated with the head as hypothesis, since whoever
+can rewrite the whole chain *and* the head passes any internal check.
+
+**Rust mapping**: `ledger-pg`'s `verify_chain` (`ChainVerification`/
+`ChainBreak` at the first mismatch — the localization, implemented)
+and `ledger-kit`'s `verify_chain` (via `tamper-audit`, SHA-256).
+Note for integrators: `ledger-pg` currently logs a `CHAIN DEBUG`
+eprintln in the hash-mismatch path — remove before the next release.
 
 ## 7. What is deliberately not specified
 

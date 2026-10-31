@@ -283,14 +283,109 @@ theorem split_sums_to_gross (gross rate : Int) :
     s.net + s.vat = s.gross := by
   simp [splitVatInclusive]
 
-/-! ## Section 6: The hash chain (symbolic model — Iteration 7) -/
+/-! ## Section 6: The hash chain — symbolic model (Iteration 7)
 
-/-- **Theorem (tamper detection)**: If any entry in a committed hash chain
-is altered, the recomputed hash at that position differs from the stored
-hash. Conditional on SHA-256's collision resistance. The symbolic-hash
-axiomatisation that turns this from `True := trivial` into a real proof is
-Iteration 7's deliverable (see ITERATIONS.md). -/
-theorem tamper_detection_conditional : True := trivial
+The axiom shape follows Toychain (Pîrlea & Sergey, CPP 2018): a single
+injectivity axiom, no preimage axiom (detection never needs inversion).
+Injectivity idealizes SHA-256's collision resistance; the form that
+transfers to real SHA-256 is the disjunctive one (`P ∨ collision`).
+The entry's canonical form pairs the payload with the previous hash, so
+splicing is unrepresentable — RFC 6962's domain-separation lesson, in a
+typed form.
+
+**Rust**: `ledger-pg`'s `verify_chain` (SHA-256 over the canonical
+`v1|tenant|...` form) and `ledger-kit`'s `verify_chain` (via
+`tamper-audit`). Both do the full sequential recompute — a linear chain
+is right precisely because verification always runs from genesis, and
+first-divergence *localization* falls out for free (a Merkle root
+mismatch says "something", not "where"). -/
+
+/-- Symbolic hash of a canonical value — injective (the idealization of
+collision resistance). -/
+axiom SymHash : Type
+axiom symHashOf : List Int × SymHash → SymHash
+axiom symHashOf_inj : ∀ a b : List Int × SymHash,
+    symHashOf a = symHashOf b → a = b
+
+/-- A committed chain entry: the canonical payload plus the claimed
+hash of everything before it. -/
+structure Entry where
+  payload : List Int
+  prevHash : SymHash
+
+/-- The chained hash of an entry. -/
+noncomputable def stepHash (e : Entry) : SymHash :=
+  symHashOf (e.payload, e.prevHash)
+
+/-- **stepHash is injective**: the payload–prevHash pair is recovered
+from the hash. -/
+theorem stepHash_inj (e₁ e₂ : Entry) (h : stepHash e₁ = stepHash e₂) :
+    e₁ = e₂ := by
+  cases e₁ with
+  | mk p₁ ph₁ =>
+    cases e₂ with
+    | mk p₂ ph₂ =>
+      simp only [stepHash] at h
+      have hinj := symHashOf_inj (p₁, ph₁) (p₂, ph₂) h
+      rw [Prod.mk.injEq] at hinj
+      obtain ⟨hpe, hphe⟩ := hinj
+      subst hpe
+      subst hphe
+      rfl
+
+/-- Equal payload and equal previous hash give equal chained hashes. -/
+theorem stepHash_congr (e e' : Entry) (hp : e.payload = e'.payload)
+    (hph : e.prevHash = e'.prevHash) : stepHash e = stepHash e' := by
+  exact congrArg symHashOf (by rw [hp, hph])
+
+/-- A chain is valid from hash `h` when every entry's claimed previous
+hash matches the running hash (entries in append order). -/
+def validChain (h : SymHash) : List Entry → Prop
+  | [] => True
+  | e :: es => e.prevHash = h ∧ validChain (stepHash e) es
+
+theorem validChain_cons (h : SymHash) (e : Entry) (es : List Entry) :
+    validChain h (e :: es) = (e.prevHash = h ∧ validChain (stepHash e) es) :=
+  rfl
+
+/-- The chain's end hash. -/
+noncomputable def chainEnd (h : SymHash) : List Entry → SymHash
+  | [] => h
+  | e :: es => chainEnd (stepHash e) es
+
+/-- **Theorem 6.2 (valid append)**: an entry claiming the chain's end
+hash extends the chain validly. -/
+theorem valid_append (h : SymHash) (es : List Entry) (e' : Entry)
+    (hv : validChain h es) (hclaim : e'.prevHash = chainEnd h es) :
+    validChain h (es ++ [e']) := by
+  induction es generalizing h with
+  | nil =>
+    rw [List.nil_append, validChain_cons]
+    exact ⟨hclaim, trivial⟩
+  | cons e es ih =>
+    obtain ⟨hp, hrest⟩ := hv
+    rw [List.cons_append, validChain_cons]
+    refine ⟨hp, ih (stepHash e) hrest ?_⟩
+    show e'.prevHash = chainEnd (stepHash e) es
+    exact hclaim
+
+/-- **Theorem 6.3 (tamper localization)**: replacing the head entry with
+a different one — whatever previous hash the attacker claims — breaks
+the chain: if the rest was valid from the original entry's hash, it is
+invalid from the replacement's. This is the first-divergence
+localization a linear chain gives for free. `rest` must have a
+successor claim (be nonempty): tampering with the *last* entry changes
+only the end hash, whose detection requires the anchored head. -/
+theorem tamper_detected (r : Entry) (rs : List Entry) (e e' : Entry)
+    (hvalid : validChain (stepHash e) (r :: rs))
+    (hdiff : stepHash e' ≠ stepHash e) :
+    ¬ validChain (stepHash e') (r :: rs) := by
+  intro hv
+  rw [validChain_cons] at hv hvalid
+  obtain ⟨hp, _⟩ := hv
+  obtain ⟨hp0, _⟩ := hvalid
+  rw [hp] at hp0
+  exact hdiff hp0
 
 /-! ## Section 7: The currency view — per-currency conservation (Iteration 4)
 

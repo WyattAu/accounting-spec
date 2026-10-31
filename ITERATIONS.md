@@ -285,3 +285,44 @@ per_doc` at term level (`Int.mul_le_mul_left` iff, `Int.mul_sub`,
 i64 overflow safety — research Digest warning: per-entry bounds do NOT
 bound partial sums (StellarGate #622/#625), the provable shape is the
 post-time check, inductive over posts.
+
+## Iteration 7 (2026-10-31)
+
+**Research**: Toychain (Pîrlea & Sergey, CPP 2018) — the symbolic-hash
+axiom is a single injectivity axiom; Verdi itself has no hash module
+(the "Verdi-style hash" was a misremembering — what Verdi contributes
+is the minimal-explicit-axiom method); HACL*/Isabelle `ADS_Functor`
+use the disjunctive `P ∨ collision` form; A2M/TrInc — equivocation
+detection; RFC 6962 — domain separation; TigerBeetle/XRPL/Hyperledger
+— tests only, no machine-checked chain proofs anywhere (Lean first:
+first-tamper-localization is ours).
+
+**Finding**: the naive "unique chain" theorem is FALSE — different
+payloads are legitimately different valid chains of the same length
+from the same prior hash (accounting, not tampering). The honest
+theorems are: injectivity of the step hash, valid append, and tamper
+*localization* (first-divergence), which the linear chain gives for
+free.
+
+**Spec**: §6 replaced — the placeholder `True := trivial` is gone;
+6.2 valid append, 6.3 tamper localization, with the anchored-head
+scope stated honestly. Integrator note recorded: `ledger-pg`'s
+`CHAIN DEBUG` eprintln should be removed.
+
+**Lean proof**: `SymHash`/`symHashOf`/`symHashOf_inj` (Toychain
+shape), `Entry`, `stepHash` (noncomputable — axioms don't compile),
+`validChain`/`chainEnd`, `stepHash_inj` (via `Prod.mk.injEq`),
+`stepHash_congr`, `validChain_cons` (rfl), `valid_append` (induction
+generalizing h — the claim composes through `chainEnd`'s definitional
+cons-case), `tamper_detected`. Zero sorries, `lake build` green.
+
+**Proof-engineering**: `set` is mathlib-only; `by_contra` is
+mathlib-only (`Classical.byContradiction` is the core route);
+`Classical.byContradiction` for contradiction goals; `rw` at
+hypotheses with projection-heads needs `simp` first; a doc-comment
+must attach to a declaration (two stacked `/--` = parse error).
+
+**Next**: i64 overflow (per-entry bounds do NOT bound partial sums —
+StellarGate #625; the provable shape is the post-time check,
+inductive over posts); append-only/permutation invariance; idempotent
+posting; the extraction bridge (Aeneas/hax decision matrix).
