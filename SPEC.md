@@ -149,12 +149,22 @@ Applying the raw half-up formula to signed input breaks symmetry at ties
 the sign; the theorem pins that this construction, not extra code, is
 what makes credit notes restate symmetrically.
 
-**Theorem 5.3** (Scope drift bound). For `n` lines and `k` jurisdictions:
+**Theorem 5.3** (Scope drift bound, corrected in Iteration 6). For `n`
+lines over one rate, the per-line and per-document allocations differ by
+at most `⌊n/2⌋` minor units:
 
-    | per_line_total − per_document_total | ≤ ⌈n·k/2⌉
+    2 · |per_line_total − per_document_total| ≤ n
 
-**Rust mapping**: `sales_tax`'s `PerLine` vs `PerDocument`. The property
-test bounds the drift; the theorem says the bound is tight.
+Across `k` rates the total drift is at most `k·⌊n/2⌋`. The earlier
+claim `⌈n·k/2⌉` was valid but loose by up to `(k−1)/2` — the tight form
+follows from the *strict* bottom end of the sharp error bound (5.1b):
+half-up's error is strictly greater than `−d/2` because the Euclidean
+remainder is at most `d − 1`. Attained: two lines each with an exact
+`.5` fraction give per-line `2` vs per-document `1`.
+
+**Rust mapping**: `sales_tax`'s `RoundingScope.PerLine` vs
+`PerDocument`. The property test bounded the drift; the theorem pins the
+tight constant.
 
 ## 6. The hash chain
 

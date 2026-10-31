@@ -634,3 +634,224 @@ theorem restate_sign_symmetry (n d : Int) : restate (-n) d = -restate n d := by
   simp only [restate, Int.sign_neg, Int.natAbs_neg]
   rw [Int.neg_mul]
 
+/-! ## Section 9: The drift bound (Iteration 6)
+
+Per-line vs per-document tax allocation (SPEC §5.3). The Euclidean
+remainder makes every error *linear*: `d·round(x, d) = x + d/2 − rem`
+with `rem = (x + d/2) % d ∈ [0, d)` — so the drift theorem needs no
+nonlinear arithmetic at all. -/
+
+theorem sum_map_sub (f g : Int → Int) (l : List Int) :
+    (l.map (fun x => f x - g x)).sum = (l.map f).sum - (l.map g).sum := by
+  induction l with
+  | nil => rfl
+  | cons x rest ih => simp only [List.map_cons, List.sum_cons, ih]; grind
+
+/-- The sharp two-sided bound: the scaled error · the value
+`2 · (d·round − n)` lies in `[1 − d, d]`. The bottom end is *strictly*
+above `−d` in every case (the Euclidean remainder is at most `d − 1`) —
+this strictness is what makes the drift bound ⌊n/2⌋ and not ⌈n/2⌉. -/
+theorem roundHalfUp_error_sharp (n d : Int) (hd : 0 < d) :
+    1 - d ≤ 2 * (d * roundHalfUp n d - n)
+    ∧ 2 * (d * roundHalfUp n d - n) ≤ d := by
+  have hd0 : d ≠ 0 := by omega
+  have h2 := Int.emod_nonneg (n + d / 2) hd0
+  have h3 := Int.emod_lt_of_pos (n + d / 2) hd
+  have h1 := Int.emod_add_mul_ediv (n + d / 2) d
+  have hdq : d * ((n + d / 2) / d) = n + d / 2 - (n + d / 2) % d := by
+    generalize hm : d * ((n + d / 2) / d) = m at h1 ⊢
+    omega
+  simp only [roundHalfUp]
+  constructor <;> rw [hdq] <;> omega
+
+/-- The per-line total (round each line, then sum). -/
+def perLine (xs : List Int) (d : Int) : Int := (xs.map (fun x => roundHalfUp x d)).sum
+
+/-- The per-document total (sum the lines, then round once). -/
+def perDoc (xs : List Int) (d : Int) : Int := roundHalfUp xs.sum d
+
+/-- Rounding zero is zero. -/
+theorem roundHalfUp_zero (d : Int) (hd : 0 < d) : roundHalfUp 0 d = 0 := by
+  have hd0 : d ≠ 0 := by omega
+  have h2 : 0 ≤ d / 2 := by omega
+  have h3 : d / 2 < d := by omega
+  have h1 : (0 + d / 2) % d + d * ((0 + d / 2) / d) = 0 + d / 2 :=
+    Int.emod_add_mul_ediv _ _
+  have h5 : d * ((0 + d / 2) / d) = 0 := by
+    generalize hm : d * ((0 + d / 2) / d) = m at h1 ⊢
+    have h4 : d / 2 % d = d / 2 := Int.emod_eq_of_lt h2 h3
+    rw [Int.zero_add, h4] at h1
+    omega
+  exact (Int.mul_eq_zero.mp h5).resolve_left hd0
+
+/-- Pointwise-bounded lists have bounded sums — the multiplicative step
+(`n` terms each `≤ hi` sum to `≤ n·hi`) done **once, generically, at
+term level**: omega rejects every fact containing a nonlinear monomial,
+so `n·hi` may never appear inside a hypothesis handed to it. -/
+theorem sum_bounded (l : List Int) (f : Int → Int) (lo hi : Int)
+    (hbound : ∀ x ∈ l, lo ≤ f x ∧ f x ≤ hi) :
+    l.length * lo ≤ (l.map f).sum ∧ (l.map f).sum ≤ l.length * hi := by
+  induction l with
+  | nil => simpa using by constructor <;> omega
+  | cons x rest ih =>
+    obtain ⟨ih1, ih2⟩ := ih (fun y hy => hbound y (List.mem_cons_of_mem _ hy))
+    obtain ⟨hx1, hx2⟩ := hbound x (List.mem_cons_self ..)
+    constructor
+    · rw [List.length_cons, Int.natCast_add, Int.add_mul, Int.natCast_one, Int.one_mul,
+        List.map_cons, List.sum_cons, Int.add_comm (f x) (rest.map f).sum]
+      exact Int.add_le_add ih1 hx1
+    · rw [List.length_cons, Int.natCast_add, Int.add_mul, Int.natCast_one, Int.one_mul,
+        List.map_cons, List.sum_cons, Int.add_comm (f x) (rest.map f).sum]
+      exact Int.add_le_add ih2 hx2
+
+theorem sum_bounded_hi (l : List Int) (f : Int → Int) (hi : Int)
+    (hbound : ∀ x ∈ l, f x ≤ hi) : (l.map f).sum ≤ l.length * hi := by
+  induction l with
+  | nil => simp
+  | cons x rest ih =>
+    have ih1 := ih (fun y hy => hbound y (List.mem_cons_of_mem _ hy))
+    have hx2 := hbound x (List.mem_cons_self ..)
+    rw [List.length_cons, Int.natCast_add, Int.add_mul, Int.natCast_one, Int.one_mul,
+      List.map_cons, List.sum_cons, Int.add_comm (f x) (rest.map f).sum]
+    exact Int.add_le_add ih1 hx2
+
+theorem sum_bounded_lo (l : List Int) (f : Int → Int) (lo : Int)
+    (hbound : ∀ x ∈ l, lo ≤ f x) : l.length * lo ≤ (l.map f).sum := by
+  induction l with
+  | nil => simp
+  | cons x rest ih =>
+    have ih1 := ih (fun y hy => hbound y (List.mem_cons_of_mem _ hy))
+    have hx1 := hbound x (List.mem_cons_self ..)
+    rw [List.length_cons, Int.natCast_add, Int.add_mul, Int.natCast_one, Int.one_mul,
+      List.map_cons, List.sum_cons, Int.add_comm (f x) (rest.map f).sum]
+    exact Int.add_le_add ih1 hx1
+
+/-- Scaling a sum: `Σ (c · f x) = c · Σ (f x)`. -/
+theorem sum_const_mul (c : Int) (f : Int → Int) (l : List Int) :
+    (l.map (fun x => c * f x)).sum = c * (l.map f).sum := by
+  induction l with
+  | nil => simp
+  | cons x rest ih =>
+    simp only [List.map_cons, List.sum_cons, ih]
+    rw [Int.mul_add]
+
+/-- The scaled per-element rounding error `2·(d·round(x,d) − x)`,
+which the sharp bound confines to `[1 − d, d]`. -/
+def scaledErr (d : Int) (x : Int) : Int := 2 * (d * roundHalfUp x d - x)
+
+/-- **Theorem 5.3 (drift bound, corrected and tight)**: for `n` lines
+over one rate, the per-line and per-document allocations differ by at
+most `⌊n/2⌋` minor units:
+
+    2 · |per_line − per_document| ≤ n
+
+Across `k` rates the total drift is at most `k·⌊n/2⌋` — the earlier
+`⌈n·k/2⌉` claim overstated by up to `(k−1)/2`. Tightness: two lines each
+with an exact `.5` fraction give per-line `2` vs per-document `1`. -/
+theorem drift_bound (xs : List Int) (d : Int) (hd : 0 < d) :
+    2 * (perLine xs d - perDoc xs d) ≤ xs.length
+    ∧ 2 * (perDoc xs d - perLine xs d) ≤ xs.length := by
+  have hd0 : d ≠ 0 := by omega
+  have hb : ∀ x ∈ xs, scaledErr d x ≤ d := by
+    intro x _
+    exact (roundHalfUp_error_sharp x d hd).2
+  -- per-line side: Σ scaledErr d = 2·(d·perLine − Σx)
+  have hlink : (xs.map (scaledErr d)).sum = 2 * (d * perLine xs d - xs.sum) := by
+    have h1 : (xs.map (scaledErr d)).sum
+        = 2 * ((xs.map (fun x => d * roundHalfUp x d - x)).sum) :=
+      sum_const_mul 2 (fun x => d * roundHalfUp x d - x) xs
+    have h2 : (xs.map (fun x => d * roundHalfUp x d - x)).sum
+        = (xs.map (fun x => d * roundHalfUp x d)).sum - xs.sum := by
+      have h := sum_map_sub (fun x => d * roundHalfUp x d) (fun x => x) xs
+      simpa using h
+    rw [h1, h2, sum_const_mul]
+    simp only [perLine]
+  -- per-element bound transfers: Σ scaledErr d ≤ n·d
+  have hE : (xs.map (scaledErr d)).sum ≤ xs.length * d :=
+    sum_bounded_hi xs (scaledErr d) d hb
+  -- document side
+  have hdoc : 1 - d ≤ 2 * (d * perDoc xs d - xs.sum)
+      ∧ 2 * (d * perDoc xs d - xs.sum) ≤ d :=
+    roundHalfUp_error_sharp xs.sum d hd
+  -- decomposition: d·(2K) = Σerr − 2·docerr
+  have hlink' : 2 * (d * perLine xs d)
+      = (xs.map (scaledErr d)).sum + 2 * xs.sum := by
+    rw [hlink, Int.mul_sub 2 (d * perLine xs d) xs.sum, Int.sub_add_cancel]
+  have hsplit : d * (2 * (perLine xs d - perDoc xs d))
+      = (xs.map (scaledErr d)).sum - 2 * (d * perDoc xs d - xs.sum) := by
+    rw [Int.mul_sub 2 (perLine xs d) (perDoc xs d),
+      Int.mul_sub d (2 * perLine xs d) (2 * perDoc xs d),
+      Int.mul_left_comm d 2 (perLine xs d),
+      Int.mul_left_comm d 2 (perDoc xs d),
+      hlink', Int.mul_sub 2 (d * perDoc xs d) xs.sum]
+    omega
+  -- decomposition for the flipped direction
+  have hsplit2 : d * (2 * (perDoc xs d - perLine xs d))
+      = 2 * (d * perDoc xs d - xs.sum) - (xs.map (scaledErr d)).sum := by
+    have h2 : 2 * (perDoc xs d - perLine xs d)
+        = -(2 * (perLine xs d - perDoc xs d)) := by
+      rw [Int.mul_sub, Int.mul_sub, Int.neg_sub]
+    rw [h2, Int.mul_neg, hsplit, Int.neg_sub]
+  constructor
+  · refine Classical.byContradiction fun hc => ?_
+    have hj : xs.length + 1 ≤ 2 * (perLine xs d - perDoc xs d) := by omega
+    have hmul : d * (2 * (perLine xs d - perDoc xs d) - (xs.length + 1))
+        = (xs.map (scaledErr d)).sum - 2 * (d * perDoc xs d - xs.sum)
+          - d * (xs.length + 1) := by
+      rw [Int.mul_sub, hsplit]
+    -- term-level combination of the bounds (omega drops monomial facts)
+    have hchain : (xs.map (scaledErr d)).sum - 2 * (d * perDoc xs d - xs.sum)
+        ≤ xs.length * d - (1 - d) := by
+      have h1 := Int.sub_le_sub_right (a := (xs.map (scaledErr d)).sum)
+        (b := xs.length * d) (c := 2 * (d * perDoc xs d - xs.sum)) hE
+      exact Int.le_trans h1 (Int.sub_le_sub_left hdoc.1 _)
+    have hle := Int.sub_le_sub_right hchain (d * (xs.length + 1))
+    rw [← hmul, Int.mul_add, Int.mul_comm d xs.length] at hle
+    -- hle : d·(2K − (n+1)) ≤ n·d − (1 − d) − (n·d + d) = −1
+    have hge : 0 ≤ d * (2 * (perLine xs d - perDoc xs d) - (xs.length + 1)) := by
+      rw [Int.mul_sub, Int.sub_nonneg]
+      exact (Int.mul_le_mul_left hd).mpr hj
+    have hfinal : xs.length * d - (1 - d) - (xs.length * d + d * 1) ≤ -1 := by omega
+    exact absurd (Int.le_trans hge (Int.le_trans hle hfinal)) (by omega)
+  · refine Classical.byContradiction fun hc => ?_
+    have hn1 : 1 ≤ xs.length := by
+      cases xs with
+      | nil =>
+        have h02 : perDoc ([] : List Int) d - perLine ([] : List Int) d = 0 := by
+          simp [perLine, perDoc, roundHalfUp_zero d hd]
+        have h03 : (2 : Int) * (perDoc ([] : List Int) d - perLine ([] : List Int) d)
+            ≤ (([] : List Int).length : Int) :=
+          by
+          rw [h02, Int.mul_zero]
+          omega
+        exact absurd h03 hc
+      | cons _ _ => simp
+    have hj : xs.length + 1 ≤ 2 * (perDoc xs d - perLine xs d) := by omega
+    have hmul2 : d * (2 * (perDoc xs d - perLine xs d) - (xs.length + 1))
+        = 2 * (d * perDoc xs d - xs.sum) - (xs.map (scaledErr d)).sum
+          - d * (xs.length + 1) := by
+      rw [Int.mul_sub, hsplit2]
+    have hchain2 : 2 * (d * perDoc xs d - xs.sum) - (xs.map (scaledErr d)).sum
+        ≤ d - (xs.length - xs.length * d) := by
+      have hE1 : xs.length - xs.length * d ≤ (xs.map (scaledErr d)).sum := by
+        have h := sum_bounded_lo xs (scaledErr d) (1 - d)
+          (fun x _ => (roundHalfUp_error_sharp x d hd).1)
+        have h2 : xs.length * (1 - d) = xs.length - xs.length * d := by
+          rw [Int.mul_sub, Int.mul_one]
+        omega
+      have h2 := Int.sub_le_sub_right (a := 2 * (d * perDoc xs d - xs.sum))
+        (b := d) (c := (xs.map (scaledErr d)).sum) hdoc.2
+      -- h2 : 2·doc − Σerr ≤ d − Σerr;  hE1 : n − n·d ≤ Σerr  (term-level chain)
+      have h3 := Int.sub_le_sub_left hE1 d
+      -- h3 : d − Σerr ≤ d − (n − n·d)
+      exact Int.le_trans h2 h3
+    have hle2 := Int.sub_le_sub_right hchain2 (d * (xs.length + 1))
+    rw [← hmul2, Int.mul_add, Int.mul_comm d xs.length] at hle2
+    -- hle2 : d·(2K' − (n+1)) ≤ d − (n − n·d) − (n·d + d) = −n
+    have hge2 : 0 ≤ d * (2 * (perDoc xs d - perLine xs d) - (xs.length + 1)) := by
+      rw [Int.mul_sub, Int.sub_nonneg]
+      exact (Int.mul_le_mul_left hd).mpr hj
+    have hfinal2 : d - (xs.length - xs.length * d) - (xs.length * d + d * 1)
+        ≤ -(xs.length : Int) := by omega
+    exact absurd (Int.le_trans hge2 (Int.le_trans hle2 hfinal2))
+      (by omega)

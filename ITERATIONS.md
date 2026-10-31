@@ -248,3 +248,40 @@ bounds + per-line drift; It 7 symbolic hash chain (Verdi-style
 axiomatised collision resistance); It 8 i64 overflow safety (bounded
 amounts); It 9 append-only ledger axioms; It 10 extraction bridge
 (Aeneas/hax/Kani/Creusot decision matrix + proptest conformance mirror).
+
+## Iteration 6 (2026-10-31)
+
+**Research**: continued from 5's rounding survey — Higham §3.1/Goldberg
+summation analysis gives per-line drift as a corollary; the SPEC's
+⌈n·k/2⌉ was checked against the sharp half-up error and found loose
+(tight: k·⌊n/2⌋, attained by double `.5` ties).
+
+**Finding — two process defects caught by the compiler itself**:
+1. The earlier sharp-bound claim `2 − d ≤ 2·err` was **false** for odd
+   `d` (omega produced a real counterexample: `d = 3, r = 2`). Correct
+   uniform form: `1 − d ≤ 2·err ≤ d` — the bottom end is *strictly*
+   above `−d`, and that strictness is exactly what tightens the drift
+   from ⌈n/2⌉ to ⌊n/2⌋.
+2. **omega rejects every hypothesis containing a nonlinear monomial**
+   (`d * (x / d)`, `n * d`) — silently, with a junk counterexample. All
+   multiplicative reasoning must be done at term level with core mul
+   lemmas; omega only ever sees the linear residue. This forced the
+   generic `sum_bounded` ("n terms each ≤ hi sum to ≤ n·hi") to be
+   proved once by induction at term level, then *used* as rewrite
+   steps.
+
+**Spec**: §5.3 restated — `2·|per_line − per_doc| ≤ n` per rate,
+`k·⌊n/2⌋` across `k` rates, tightness note.
+
+**Lean proof**: `roundHalfUp_error_sharp` (strict bottom),
+`sum_map_sub`, `sum_bounded` (+`_hi`/`_lo`), `sum_const_mul`,
+`perLine`/`perDoc`, `drift_bound` — the final contradiction combines
+`Σerr ≤ n·d`, `docerr ≥ 1 − d`, and integrality of `K := per_line −
+per_doc` at term level (`Int.mul_le_mul_left` iff, `Int.mul_sub`,
+`Classical.byContradiction` — note: core has **no** `by_contra` and
+**no** `List.NoDup`). Zero sorries, `lake build` green.
+
+**Next**: symbolic hash chain (kill the `True := trivial` placeholder);
+i64 overflow safety — research Digest warning: per-entry bounds do NOT
+bound partial sums (StellarGate #622/#625), the provable shape is the
+post-time check, inductive over posts.
