@@ -1,0 +1,31 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["6ca1b0e27bd79726.olean"],
+  "m": false,
+  "i": "07bb6dfa47c58a86.ilean",
+  "c": "f8fe212c23fcc3e6.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/lib/lean /home/wyatt/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/src/Accounting.lean -o /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/lib/lean/Accounting.olean -i /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/lib/lean/Accounting.ilean -c /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/ir/Accounting.c --setup /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/ir/Accounting.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["deps",
+   [["accounting/Accounting:extraDep",
+     [["@accounting:extraDep", "00000000000006bb"]]],
+    ["imports", "00000000000006bb"]]],
+  ["libs",
+   [["import dynlibs", "00000000000006bb"],
+    ["package external libraries", "00000000000006bb"],
+    ["module dynlibs", "00000000000006bb"],
+    ["module plugins", "00000000000006bb"]]],
+  ["Lean 4.35.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+   "407ce514b71d5a10"],
+  ["/home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/src/Accounting.lean",
+   "a20990967fb30200"],
+  ["options", "00000000000006bb"],
+  ["isModule: false", "feefd2a0d3a1847e"],
+  ["Module.name: Accounting", "3b81d3b4d9113077"],
+  ["Package.id?: (some accounting)", "30eb8348dc4d92c2"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "a1dcc5c70b02cb55"}

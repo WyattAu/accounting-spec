@@ -8,6 +8,11 @@ with the mapping to the Rust implementation. The theorems are proven
 mechanically in [`lean/src/Accounting.lean`](lean/src/Accounting.lean);
 this document is the human-readable companion.
 
+**Status (Iteration 2)**: every theorem in the Lean file is machine-proved
+with Lean 4 core alone — zero `sorry`s, zero dependencies, and `lake build`
+type-checks all of them (the library target is declared; previously CI
+verified nothing). See ITERATIONS.md for the research loop.
+
 ## 1. Money amounts are integers
 
 Every amount is an element of ℤ; integer minor units. There are no floats
@@ -72,10 +77,17 @@ reversal, then `e + e'` is balanced: the pair nets to zero on every account.
 
     ∀a. balance({e, e'}, a) = balance({e}, a) + balance({e'}, a) = 0
 
+**Theorem 4.2** (Reversal involution, added Iteration 2). Reversing twice
+is the identity:
+
+    reversed(reversed(e)) = e
+
 **Rust mapping**: `double_entry`'s `reverse()` and `ledger-pg`'s
 `reverse()`. The original stays posted and the counter cancels it; the
 theorem says the cancellation is exact, to the minor unit, on every
 account, which is why the reversal cannot produce a spurious residual.
+The involution theorem pins the round-trip: a reversed reversal must
+reproduce the original entry bit-for-bit.
 
 ## 5. Rounding
 

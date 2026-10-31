@@ -1,2 +1,10 @@
 name = "accounting"
 version = "0.1.0"
+defaultTargets = ["Accounting"]
+
+# Iteration 2: the library target was missing, so `lake build` verified
+# nothing ("no targets specified"). Declaring it makes CI type-check every
+# proof in src/Accounting.lean on every push.
+[[lean_lib]]
+name = "Accounting"
+srcDir = "src"
