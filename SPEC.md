@@ -55,6 +55,16 @@ The **balance** of an account `a` in a ledger `L`:
 
     balance(L, a) := Σ { p.amount | p ∈ L, p.account = a }
 
+**Formal status (Iteration 3)**: the account dimension is now modelled —
+`Posting` carries `account : Nat`, `balanceOf` is the per-account fold,
+and the append law (`balanceOf (x ++ y) a = balanceOf x a + balanceOf y a`)
+plus the per-account reversal law (`balanceOf (reverseEntries ps) a =
+−balanceOf ps a`) are machine-proved. The coverage form (Σ over a
+covering, duplicate-free account list = 0) is the next open theorem;
+its `NoDup` side-condition is load-bearing — a duplicated account
+double-counts, and the Rust `TrialBalance` must iterate distinct
+accounts.
+
 **Theorem 3.1** (Trial balance). If every entry in `L` is balanced, then:
 
     Σ { balance(L, a) | a ∈ accounts(L) } = 0

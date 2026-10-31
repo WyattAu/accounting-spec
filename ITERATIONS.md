@@ -81,3 +81,49 @@ for the involution).
 **Next**: the account dimension (SPEC §3 cannot be *stated* —
 `Posting := Amount` erases it), multi-currency conservation, rounding
 error bounds, symbolic hash chain.
+
+## Iteration 3 (2026-10-31)
+
+**Research**: Ellerman's mathematical treatment of double-entry
+bookkeeping (arXiv:1407.1898) — DEB is the group of differences over
+"T-accounts", generalised to multidimensional value vectors: an account
+is a *dimension* of the vector, not a label to erase. Cardano's Agda
+ledger specification does the same independently (entries as maps over
+addresses). TigerBeetle's account model (fixed two-phase balances).
+
+**Analysis**: SPEC §3 (trial balance per account) was UNSTATABLE in the
+Lean layer — `Posting := Amount` had erased the account dimension. That
+is a spec defect, not a proof defect. Ellerman's vector view is the
+cutting-edge-correct model; other ecosystems (Cardano/Agda) formalise
+entries as maps, which needs Finset/finite-map support — mathlib
+territory. Core-only alternative: postings carry `account : Nat`, the
+balance is a `foldr` with an account test, and conservation stays in the
+amount view (§2), of which the account view is a lift.
+
+**Spec**: §2 split into the amount view (conservation algebra, `List
+Amount`) and the account view (§2b: `Posting` structure, `amounts`
+projection, `balanceOf`). SPEC §3 updated: per-account balances are now
+formal; the *coverage* form of the trial balance (sum over a covering
+account list, NoDup required — duplicated accounts double-count, which
+the Rust `TrialBalance` must respect) is recorded as the next open
+theorem.
+
+**Lean proof** (new theorems, all machine-proved): `amounts_append`,
+`amounts_reverseEntries`, `balanceOf_append`, `balanceOf_nil`,
+`balanceOf_reverseEntries`, `entry_reversal_cancels` (the §4
+cancellation lifted through the projection — one-line corollary, no new
+proof effort). Proof-engineering findings: `if_pos`/`if_neg` are
+deprecated in 4.35 and their `rw` forms mis-fire inside `split` branches
+— use `split` + explicit `Int.add_assoc`/`Int.neg_add` rewrites instead;
+`List.foldr`-based definitions give `rfl` cons-equations, while
+filter-based ones pull `decide` into every goal.
+
+**Status**: build green, zero sorries. Iteration count: 3/10.
+
+**Next (queued)**: It 4 multi-currency conservation (currency-tagged
+amounts, per-currency monoids); It 5 rounding error bounds
+(`|round(n,d) − n/d| ≤ ½` via `Int.ediv_add_emod`); It 6 VAT split
+bounds + per-line drift; It 7 symbolic hash chain (Verdi-style
+axiomatised collision resistance); It 8 i64 overflow safety (bounded
+amounts); It 9 append-only ledger axioms; It 10 extraction bridge
+(Aeneas/hax/Kani/Creusot decision matrix + proptest conformance mirror).
