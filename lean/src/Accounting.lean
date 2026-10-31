@@ -4,10 +4,10 @@ The formal proofs for the WyattAu accounting estate.
 Every definition here corresponds to a section of SPEC.md. The theorems
 are stated with their Rust implementation mappings.
 
-Status (Iteration 3): ZERO `sorry`s. Zero dependencies beyond Lean 4 core.
+Status (Iteration 4): ZERO `sorry`s. Zero dependencies beyond Lean 4 core.
 `lake build` type-checks every proof.
 
-Two layers, per Ellerman's mathematical treatment of double-entry
+Three layers, per Ellerman's mathematical treatment of double-entry
 bookkeeping (arXiv:1407.1898): a ledger entry is an element of the group
 of differences, and with multiple accounts it is a *vector* — accounts are
 dimensions, not erased labels.
@@ -17,6 +17,10 @@ dimensions, not erased labels.
 - **Account view** (§2b): postings carry an account id; the amount view
   is the *projection* `amounts`. Per-account balances, their append and
   reversal laws, and entry-level cancellation are proved here.
+- **Currency view** (§7): postings carry a currency; conservation holds
+  *per currency*, the coverage trial balance sums per-account balances
+  over a NoDup chart, and well-formed conversions post every residual
+  to an account.
 
 Axioms of trust:
 - `Int` arithmetic is correct (Lean 4 core, which is self-hosted).
@@ -287,3 +291,294 @@ hash. Conditional on SHA-256's collision resistance. The symbolic-hash
 axiomatisation that turns this from `True := trivial` into a real proof is
 Iteration 7's deliverable (see ITERATIONS.md). -/
 theorem tamper_detection_conditional : True := trivial
+
+/-! ## Section 7: The currency view — per-currency conservation (Iteration 4)
+
+Currencies are dimensions exactly as accounts are (Ellerman's vector
+view, one level up): a posting carries `(account, currency, amount)`, and
+the conservation law holds *per currency*. A cross-currency sum is not a
+term of the algebra. The Rust side mirrors the structure: `double_entry`
+refuses `MixedCurrencies` at post time, TigerBeetle makes cross-ledger
+transfers structurally illegal, and ERP practice (Odoo's
+exchange-difference journal, ERPNext's `difference_amount == 0` gate)
+requires every FX residual to land on a named account. No published
+ledger *proves* this; everywhere it is a runtime check. -/
+
+/-- A currency is an opaque identifier; the algebra never converts
+silently. -/
+abbrev CurrencyId := Nat
+
+/-- A currency-tagged posting. -/
+structure CPosting where
+  account : Nat
+  currency : CurrencyId
+  amount : Amount
+
+/-- The amounts of a posting list restricted to currency `c`. -/
+def amountsIn (c : CurrencyId) (ps : List CPosting) : List Amount :=
+  ps.foldr (fun p acc => if p.currency = c then p.amount :: acc else acc) []
+
+/-- Cons equation for `amountsIn` — the rfl lemma that keeps rewrites
+folded (rw-unfolding the def breaks later pattern matches). -/
+theorem amountsIn_cons (c : CurrencyId) (p : CPosting) (ps : List CPosting) :
+    amountsIn c (p :: ps) =
+      if p.currency = c then p.amount :: amountsIn c ps else amountsIn c ps :=
+  rfl
+
+/-- Balanced *in currency `c`*: the currency-restricted signed sum is
+zero. -/
+def isBalancedIn (c : CurrencyId) (ps : List CPosting) : Prop :=
+  (amountsIn c ps).sum = 0
+
+/-- The balance of account `a` in currency `c`.
+
+**Rust**: `report-kit`'s `TrialBalance::currencies()` + per-account rows. -/
+def balanceOfIn (led : List CPosting) (c : CurrencyId) (a : Nat) : Amount :=
+  led.foldr (fun p acc => if p.currency = c ∧ p.account = a then p.amount + acc else acc) 0
+
+/-- Cons equation for `balanceOfIn`. -/
+theorem balanceOfIn_cons (p : CPosting) (led : List CPosting) (c : CurrencyId) (a : Nat) :
+    balanceOfIn (p :: led) c a =
+      if p.currency = c ∧ p.account = a then p.amount + balanceOfIn led c a
+      else balanceOfIn led c a :=
+  rfl
+
+/-- **amountsIn_append**: the currency projection is a homomorphism —
+slicing by currency distributes over ledger concatenation. -/
+theorem amountsIn_append (c : CurrencyId) (x y : List CPosting) :
+    amountsIn c (x ++ y) = amountsIn c x ++ amountsIn c y := by
+  induction x with
+  | nil => rfl
+  | cons p rest ih =>
+    rw [List.cons_append, amountsIn_cons, amountsIn_cons, ih]
+    by_cases h : p.currency = c
+    · rw [if_pos h, if_pos h]; rfl
+    · rw [if_neg h, if_neg h]
+
+/-- **trial_balance_currency**: if every entry of the ledger is balanced
+in currency `c`, the currency-restricted view of the whole ledger is
+balanced in `c`. The per-currency form of §3's trial balance. -/
+theorem trial_balance_currency (c : CurrencyId)
+    (entries : List (List CPosting))
+    (h : ∀ e ∈ entries, isBalancedIn c e) :
+    isBalancedIn c (entries.foldr (fun a b => a ++ b) []) := by
+  induction entries with
+  | nil => rfl
+  | cons e rest ih =>
+    have he : isBalancedIn c e := h e (List.mem_cons_self ..)
+    have hrest : ∀ q ∈ rest, isBalancedIn c q :=
+      fun q hq => h q (List.mem_cons_of_mem _ hq)
+    have hrest' : isBalancedIn c (rest.foldr (fun a b => a ++ b) []) := ih hrest
+    simp only [List.foldr_cons, amountsIn_append, isBalancedIn] at *
+    rw [List.sum_append, he, hrest']
+    simp
+
+/-- The reversal of a currency-tagged posting negates the amount and
+preserves the account and currency. -/
+def reverseCPosting (p : CPosting) : CPosting := { p with amount := -p.amount }
+
+/-- The reversal of a currency-tagged posting list. -/
+def reverseCEntries (ps : List CPosting) : List CPosting := ps.map reverseCPosting
+
+/-- A chart has no duplicated accounts. (Core Lean 4 has no `List.NoDup`;
+this is the minimal local version — a duplicated chart entry would
+double-count, which the theorem forbids.) -/
+inductive NoDup : List Nat → Prop
+  | nil : NoDup []
+  | cons : ∀ {a l}, a ∉ l → NoDup l → NoDup (a :: l)
+
+/-- **amountsIn_reverseCEntries**: reversal projects to reversal in every
+currency slice. -/
+theorem amountsIn_reverseCEntries (c : CurrencyId) (ps : List CPosting) :
+    amountsIn c (reverseCEntries ps) = reverseAll (amountsIn c ps) := by
+  induction ps with
+  | nil => rfl
+  | cons p rest ih =>
+    show amountsIn c (reverseCPosting p :: reverseCEntries rest) = _
+    rw [amountsIn_cons, amountsIn_cons, ih]
+    simp only [reverseCPosting]
+    by_cases h : p.currency = c
+    · simp [h, reverseAll, reversePosting, List.map_cons]
+    · simp [h, reverseAll, reversePosting, List.map_cons]
+
+/-- **reversal_cancels_in**: an entry plus its reversal is balanced in
+every currency — the §4 cancellation, currency-refined. -/
+theorem reversal_cancels_in (c : CurrencyId) (ps : List CPosting) :
+    isBalancedIn c (ps ++ reverseCEntries ps) := by
+  show (amountsIn c (ps ++ reverseCEntries ps)).sum = 0
+  rw [amountsIn_append, amountsIn_reverseCEntries]
+  exact reversal_cancels _
+
+/-! ### The coverage theorem — §3 as stated
+
+§3's trial balance sums over the *accounts*. That needs a finite chart
+(a covering account list); a duplicated chart entry would double-count,
+so `NoDup` is load-bearing. -/
+
+/-- Helper: summing a constant-zero mapping over a chart is zero. -/
+theorem sum_const_zero (l : List Nat) :
+    (l.map (fun _ => (0 : Amount))).sum = 0 := by
+  induction l with
+  | nil => rfl
+  | cons _ rest ih => rw [List.map_cons, List.sum_cons, ih]; simp
+
+/-- Helper: a pointwise sum of functions sums to the sum of sums. -/
+theorem sum_map_add (f g : Nat → Amount) (l : List Nat) :
+    (l.map (fun a => f a + g a)).sum = (l.map f).sum + (l.map g).sum := by
+  induction l with
+  | nil => rfl
+  | cons x rest ih => simp only [List.map_cons, List.sum_cons, ih]; grind
+
+/-- Helper: a chart on which account `a` never appears contributes zero
+to the single-hit sum. -/
+theorem sum_zero_of_ne : ∀ (chart : List Nat) (a : Nat) (v : Amount),
+    (∀ x ∈ chart, x ≠ a) →
+    (chart.map (fun x => if x = a then v else 0)).sum = 0 := by
+  intro chart
+  induction chart with
+  | nil => intro a v _; rfl
+  | cons hd rest ih =>
+    intro a v hne
+    have hz := ih a v (fun x hx => hne x (List.mem_cons_of_mem _ hx))
+    rw [List.map_cons, List.sum_cons, if_neg (hne hd (List.mem_cons_self ..)), hz]
+    simp
+
+/-- Helper: exactly-one-hit sum. If account `a` appears in `chart`, the
+sum of `if x = a then v else 0` over the chart is `v` — `NoDup` ensures
+the hit is single. -/
+theorem sum_single_hit : ∀ (chart : List Nat) (a : Nat) (v : Amount),
+    NoDup chart → a ∈ chart →
+    (chart.map (fun x => if x = a then v else 0)).sum = v := by
+  intro chart
+  induction chart with
+  | nil => intro a v _ hmem; exact absurd hmem (by simp)
+  | cons hd rest ih =>
+    intro a v hnd hmem
+    cases hnd with
+    | @cons _ _ hnot hndrest =>
+      rw [List.map_cons, List.sum_cons]
+      by_cases h : hd = a
+      · rw [if_pos h]
+        have hz : (rest.map (fun x => if x = a then v else 0)).sum = 0 :=
+          sum_zero_of_ne rest a v (by
+            intro x hx hxa
+            rw [hxa.trans h.symm] at hx
+            exact hnot hx)
+        rw [hz]; simp
+      · rw [if_neg h]
+        have hmem' : a ∈ rest := by
+          rcases List.mem_cons.1 hmem with he | he
+          · exact absurd he.symm h
+          · exact he
+        rw [ih a v hndrest hmem']
+        simp
+
+/-- **coverage_exchange**: the exchange lemma. With a `NoDup` chart that
+covers every posting's account, the sum of per-account balances in `c`
+equals the currency-restricted total — this is what makes the trial
+balance a *check with content*: it recomputes the invariant by a
+different route (per-account instead of per-entry). -/
+theorem coverage_exchange (led : List CPosting) (c : CurrencyId) :
+    ∀ (chart : List Nat), NoDup chart →
+    (∀ p ∈ led, p.account ∈ chart) →
+    (chart.map (fun a => balanceOfIn led c a)).sum = (amountsIn c led).sum := by
+  induction led with
+  | nil =>
+    intro chart _ _
+    exact sum_const_zero chart
+  | cons p rest ih =>
+    intro chart hnd hcov
+    cases hnd with
+    | nil => exact absurd (hcov p (List.mem_cons_self ..)) (by simp)
+    | @cons a l hnot hndrest =>
+      -- `chart` has been substituted to `a :: l`
+      have hcov' : ∀ q ∈ rest, q.account ∈ a :: l :=
+        fun q hq => hcov q (List.mem_cons_of_mem _ hq)
+      by_cases hpc : p.currency = c
+      · have hpa : p.account ∈ a :: l := hcov p (List.mem_cons_self ..)
+        have step : ∀ x : Nat, balanceOfIn (p :: rest) c x =
+            (if x = p.account then p.amount else 0) + balanceOfIn rest c x := by
+          intro x
+          rw [balanceOfIn_cons]
+          by_cases h : p.account = x
+          · rw [if_pos ⟨hpc, h⟩, if_pos h.symm]
+          · rw [if_neg (fun hcon => h hcon.2), if_neg (fun hcon => h hcon.symm)]
+            simp
+        simp only [step, sum_map_add,
+          sum_single_hit (a :: l) p.account p.amount (NoDup.cons hnot hndrest) hpa,
+          amountsIn_cons, if_pos hpc, List.sum_cons]
+        rw [ih (a :: l) (NoDup.cons hnot hndrest) hcov']
+      · have step : ∀ x : Nat, balanceOfIn (p :: rest) c x =
+            balanceOfIn rest c x := by
+          intro x
+          rw [balanceOfIn_cons, if_neg (fun hcon => hpc hcon.1)]
+        simp only [step, amountsIn_cons, if_neg hpc, List.sum_cons]
+        rw [ih (a :: l) (NoDup.cons hnot hndrest) hcov']
+
+/-- **trial_balance_coverage**: §3's theorem, now stated and proved. If
+the chart covers every posting's account (NoDup), a ledger balanced in
+currency `c` sums to zero over the chart. The runtime check
+`report-kit`'s `TrialBalance::is_balanced()` performs is exactly this
+sum; the theorem says on a gated ledger it cannot fail. -/
+theorem trial_balance_coverage (led : List CPosting) (c : CurrencyId)
+    (chart : List Nat) (hnd : NoDup chart)
+    (hcov : ∀ p ∈ led, p.account ∈ chart)
+    (hb : isBalancedIn c led) :
+    (chart.map (fun a => balanceOfIn led c a)).sum = 0 := by
+  have hex := coverage_exchange led c chart hnd hcov
+  rw [hex]
+  exact hb
+
+/-! ### The conversion entries — every residual has an account
+
+A well-formed conversion between currency `c` (source) and `d` (target)
+is *two* internally balanced entries: `v` moves from the source account
+to the FX account within `c`; the converted amount moves from the FX
+account to the target account within `d`. The FX account carries the
+cross-currency exposure — measurable, auditable, never a silent leak.
+
+**Rust**: `fx-kit`'s `revalue` (IAS 21) posting residuals to a named
+account; Odoo's exchange-difference journal; TigerBeetle's linked
+two-transfer exchange recipe. -/
+
+def conversionEntrySource (fx src : Nat) (c : CurrencyId) (v : Amount) :
+    List CPosting :=
+  [{ account := src, currency := c, amount := -v },
+   { account := fx, currency := c, amount := v }]
+
+def conversionEntryTarget (fx tgt : Nat) (d : CurrencyId) (v' : Amount) :
+    List CPosting :=
+  [{ account := fx, currency := d, amount := -v' },
+   { account := tgt, currency := d, amount := v' }]
+
+/-- Each half of a conversion is balanced in its own currency: the
+conversion cannot disturb conservation, whatever the rate or rounding. -/
+theorem conversion_source_balanced (fx src : Nat) (c : CurrencyId) (v : Amount) :
+    isBalancedIn c (conversionEntrySource fx src c v) := by
+  simp [isBalancedIn, amountsIn, conversionEntrySource]
+  grind
+
+theorem conversion_target_balanced (fx tgt : Nat) (d : CurrencyId) (v' : Amount) :
+    isBalancedIn d (conversionEntryTarget fx tgt d v') := by
+  simp [isBalancedIn, amountsIn, conversionEntryTarget]
+  grind
+
+/-- **conversion_preserves**: appending any sequence of well-formed
+conversion halves to a per-currency-balanced journal keeps it balanced in
+every currency of interest. The composite law: per-currency conservation
+is inductive under posting *and* conversion. -/
+theorem conversion_preserves (cs : List CurrencyId)
+    (led convs : List (List CPosting))
+    (hb : ∀ c ∈ cs, isBalancedIn c (led.foldr (fun a b => a ++ b) []))
+    (hc : ∀ e ∈ convs, ∀ c ∈ cs, isBalancedIn c e) :
+    ∀ c ∈ cs, isBalancedIn c
+        ((led.foldr (fun a b => a ++ b) []) ++
+         (convs.foldr (fun a b => a ++ b) [])) := by
+  intro c hc'
+  have h1 : ∀ e ∈ convs, isBalancedIn c e := fun e he => hc e he c hc'
+  have h2 := trial_balance_currency c convs h1
+  have h3 := hb c hc'
+  rw [isBalancedIn] at h2 h3 ⊢
+  rw [amountsIn_append, List.sum_append, h3, h2]
+  simp
+

@@ -148,9 +148,64 @@ not proven from first principles (which would be a paper, not a proof).
 
 ## 7. What is deliberately not specified
 
-- **Currency conversion**: rates are exact rationals supplied by the
-  caller; the theorem set covers restatement arithmetic, not rate discovery.
+- **Currency conversion rates**: rates are exact rationals supplied by
+  the caller; the theorem set covers conversion *mechanics* (§8), not
+  rate discovery.
 - **Tax law**: the taxability decision is an input (`ap-kit`'s
   `Recoverability`, `sales-tax`'s `SaleLine.taxable`). The arithmetic is
   specified; the law is not.
 - **Float behavior**: there is none. The specification has no float type.
+
+## 8. The currency view — per-currency conservation
+
+Currencies are dimensions exactly as accounts are (§2b, one level up): a
+posting carries `(account, currency, amount)`, and the conservation law
+holds **per currency**. A cross-currency sum is not a term of the
+algebra.
+
+    CPosting := (account : Nat, currency : CurrencyId, amount : ℤ)
+    amountsIn(c, ps)  := the amounts of ps whose currency is c
+    isBalancedIn(c, ps) :↔ Σ amountsIn(c, ps) = 0
+    balanceOfIn(led, c, a) := Σ { p.amount | p ∈ led, p.currency = c,
+                                           p.account = a }
+
+**Theorem 8.1** (Per-currency trial balance). If every entry of a
+journal is balanced in currency `c`, the currency-restricted view of the
+whole journal is balanced in `c`.
+
+**Theorem 8.2** (Reversal cancels, currency-refined). An entry plus its
+reversal is balanced in every currency.
+
+**Theorem 8.3** (Coverage). Let `chart` be a list of accounts with no
+duplicates that covers every posting's account. If the ledger is
+balanced in currency `c`, then the sum of per-account balances over the
+chart is zero:
+
+    Σ { balanceOfIn(led, c, a) | a ∈ chart } = 0
+
+This is §3's trial balance stated the way the report actually computes
+it: per account, over the chart of accounts. `NoDup` is load-bearing —
+a duplicated chart entry would double-count. The theorem is what makes
+the runtime check *a check with content*: it recomputes the invariant
+by a different route (per-account, not per-entry) and must land on the
+same zero.
+
+**Theorem 8.4** (Conversion preserves conservation). A well-formed
+conversion between currencies `c` and `d` is two internally balanced
+entries: `v` moves from the source account to the FX account within `c`;
+the converted amount moves from the FX account to the target account
+within `d`. Appending any sequence of such entries to a
+per-currency-balanced journal keeps it balanced in every currency. The
+FX account carries the cross-currency exposure — measurable, auditable,
+never a silent leak.
+
+**Rust mapping**: `double_entry`'s `PostError::MixedCurrencies` and
+per-currency `Amount`; `report-kit`'s `TrialBalance::currencies()` and
+`accounting_equation_holds`; `fx-kit`'s `revalue` (IAS 21) posting
+residuals to a named account. Structural precedent: TigerBeetle makes
+cross-ledger transfers illegal (`accounts_must_have_the_same_ledger`);
+ERP practice (Odoo's exchange-difference journal, ERPNext's
+`difference_amount == 0` gate) requires every residual to land on a
+named account. Per-currency conservation is *enforced at runtime*
+everywhere we checked and *proved* nowhere — this section is the
+proof.

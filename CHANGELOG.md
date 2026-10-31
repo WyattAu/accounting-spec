@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Iteration 4
+
+- SPEC §8: the currency view — per-currency conservation, the coverage
+  trial balance over a `NoDup` chart, and well-formed conversion
+  entries (every residual has an account).
+- Lean: `trial_balance_currency`, `trial_balance_coverage`,
+  `reversal_cancels_in`, `conversion_source_balanced`,
+  `conversion_target_balanced`, `conversion_preserves`; zero sorries,
+  zero dependencies.
+
 ## [0.1.0] - 2026-10-28
 
 Initial release: the formal specification (SPEC.md) and Lean 4 proofs for

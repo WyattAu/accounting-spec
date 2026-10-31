@@ -84,6 +84,72 @@ error bounds, symbolic hash chain.
 
 ## Iteration 3 (2026-10-31)
 
+See commit 1156e0a: account dimension formalised (`Posting` structure,
+`balanceOf` laws, entry-level cancellation); SPEC §3 statable; zero
+sorries. (Recorded by the parallel session.)
+
+## Iteration 4 (2026-10-31)
+
+**Research**: TigerBeetle's ledger-tagged accounts
+(`accounts_must_have_the_same_ledger` — cross-currency posting made
+*structurally* illegal; FX via two linked transfers and a liquidity
+account); Odoo's exchange-difference journal and
+`account.cash.rounding` accounts; ERPNext's `difference_amount == 0`
+submit gate; QBO's home-currency adjustment (unrealized FX kept *out*
+of the GL); Xero's per-document `CurrencyRate` warnings; IAS 21
+(¶23/¶28: remeasure monetary items at closing rate, differences to
+P&L); Ellerman's vector accounting (per-component conservation);
+Kennedy's units-of-measure (POPL '97) and its 2026 Lean mechanisation
+(arXiv:2609.38242). Rust money crates (`rusty-money`, `rust_decimal`)
+enforce same-currency arithmetic by runtime panic — none encodes
+ledger-level conservation.
+
+**Finding**: per-currency conservation is *runtime-checked* everywhere
+and *proved nowhere*. TigerBeetle's check is an error code; Odoo's is a
+wizard; the documented failure mode (manual entries bypassing the
+wizard — "out by one cent" receivable dust) is exactly the leak the
+theorem closes. The multi-currency extension is therefore a genuine
+specification contribution, not a re-derivation.
+
+**Spec**: new §8 — the currency view. `CPosting` carries the currency;
+`amountsIn`/`balanceOfIn` slice the algebra per currency; §7's currency
+bullet narrowed (conversion *mechanics* specified, rate discovery not).
+
+**Lean proof**: `amountsIn_append`, `trial_balance_currency`,
+`amounts_reverseCEntries`, `reversal_cancels_in`,
+`trial_balance_coverage` (§3 as stated — the chart must cover every
+posting's account and be `NoDup`; the sum of per-account balances over
+the chart equals the currency-slice total, hence zero),
+`conversion_source_balanced` / `conversion_target_balanced`
+(each conversion half is internally balanced — whatever the rate does,
+conservation is untouched), `conversion_preserves` (inductive under
+posting *and* conversion). Zero sorries, `lake build` green.
+
+**Proof-engineering notes**:
+- Core Lean 4 has **no `List.NoDup`** (mathlib-only); a local 2-
+  constructor inductive is sufficient and keeps the zero-dependency
+  posture.
+- `cases` on an indexed family *substitutes the index everywhere* —
+  naming the case `@cons a l hnot hndrest` is mandatory if the rest of
+  the proof mentions the substituted term; partial `@cons x y` bindings
+  silently bind the *indices*, not the fields.
+- `rw [def]` unfolds at the first match and breaks later pattern matches
+  that still expect the folded form — prove the rfl cons-equation
+  (`amountsIn_cons`, `balanceOfIn_cons`) and rewrite with that instead.
+- Dot-notation `.symm` on `¬(a = b)` fails (head symbol is `→`, not
+  `Ne`); write `fun hcon => h hcon.symm`.
+- Coverage insight: entry-level balancedness does *not* induct (entry
+  `p :: rest` balanced says nothing about `rest`); the correct route is
+  the exchange lemma `coverage_exchange` — chart-sum equals slice-sum —
+  then the balancedness hypothesis lands at the top level.
+
+**Next**: rounding error bounds (`|d·round(n,d) − n| ≤ d/2` for half-up
+on magnitude), sign symmetry, VAT split bounds, the corrected per-line
+drift bound (⌈n·k/2⌉ in §5 is loose — tight is k·⌊n/2⌋ per rate), then
+the symbolic hash chain.
+
+## Iteration 3 (2026-10-31)
+
 **Research**: Ellerman's mathematical treatment of double-entry
 bookkeeping (arXiv:1407.1898) — DEB is the group of differences over
 "T-accounts", generalised to multidimensional value vectors: an account
