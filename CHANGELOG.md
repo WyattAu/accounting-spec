@@ -10,7 +10,7 @@ the accounting estate's core algebra.
 ### Added
 
 - SPEC.md: the posting algebra, balance conservation, reversal
-  cancellation, rounding, and hash chain — with Rust mappings at each
+  cancellation, rounding, and hash chain; with Rust mappings at each
   section.
 - Lean 4 proofs: `split_sums_to_gross` proven with core Lean 4 (no
   mathlib); `reversal_cancels`, `reversal_sum_negates`,

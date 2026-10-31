@@ -1,5 +1,8 @@
 # The Formal Specification
 
+> **Status: CURRENT**
+**Oracle:** `lean/src/Accounting.lean`
+
 This document states the accounting algebra as definitions and theorems,
 with the mapping to the Rust implementation. The theorems are proven
 mechanically in [`lean/src/Accounting.lean`](lean/src/Accounting.lean);
@@ -7,7 +10,7 @@ this document is the human-readable companion.
 
 ## 1. Money amounts are integers
 
-Every amount is an element of ℤ — integer minor units. There are no floats
+Every amount is an element of ℤ; integer minor units. There are no floats
 anywhere in the arithmetic path. This is the axiom the entire estate is
 built on, and it eliminates the class of defects that Odoo's
 `float_utils.py` documents as requiring minimization.
@@ -39,7 +42,7 @@ balanced, then the sum of all account balances is zero.
 
 **Rust mapping**: `double_entry::post()` refuses unbalanced entries
 (`PostError::Unbalanced`). The theorem says this check is not just
-defensive — it enforces the conservation law that makes the reports work.
+defensive; it enforces the conservation law that makes the reports work.
 
 ## 3. The trial balance
 
@@ -53,7 +56,7 @@ The **balance** of an account `a` in a ledger `L`:
 
 This is the runtime check `report-kit`'s `TrialBalance::is_balanced()`
 performs, restated: the report is not discovering something about the
-ledger — it is confirming a property the ledger's post-time check already
+ledger; it is confirming a property the ledger's post-time check already
 guaranteed. The theorem says the check must always pass; if it doesn't, the
 ledger is not a ledger.
 
@@ -70,7 +73,7 @@ reversal, then `e + e'` is balanced: the pair nets to zero on every account.
     ∀a. balance({e, e'}, a) = balance({e}, a) + balance({e'}, a) = 0
 
 **Rust mapping**: `double_entry`'s `reverse()` and `ledger-pg`'s
-`reverse()`. The original stays posted and the counter cancels it — the
+`reverse()`. The original stays posted and the counter cancels it; the
 theorem says the cancellation is exact, to the minor unit, on every
 account, which is why the reversal cannot produce a spurious residual.
 
@@ -89,7 +92,7 @@ rate `r < 1000`:
     split(g, r).net + split(g, r).vat = g
 
 **Rust mapping**: `invoice_kit::split_vat_inclusive`. The net is computed
-as `gross − vat`, never independently — the theorem says this is not an
+as `gross − vat`, never independently; the theorem says this is not an
 optimisation but the definition of correctness.
 
 **Theorem 5.2** (Sign symmetry). For any amount `a` and rate `r`:
@@ -118,7 +121,7 @@ match its recomputation, then entry `eⱼ` (or any earlier entry) has been
 altered since its hash was committed.
 
 **Rust mapping**: `ledger_pg::verify_chain`. The theorem is conditional on
-SHA-256's collision resistance — stated in Lean as a trusted assumption,
+SHA-256's collision resistance; stated in Lean as a trusted assumption,
 not proven from first principles (which would be a paper, not a proof).
 
 ## 7. What is deliberately not specified

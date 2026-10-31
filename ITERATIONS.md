@@ -11,7 +11,7 @@ checking, compile-time assertions), Cardano's formal ledger specification
 (Agda), Lean 4 core vs mathlib capabilities, Verdi's symbolic SHA model,
 Aeneas's Rust-to-Lean extraction.
 
-**Analysis**: The core algebra is linear integer arithmetic — exactly
+**Analysis**: The core algebra is linear integer arithmetic; exactly
 what Lean 4's `omega` tactic proves automatically, so no mathlib is
 needed for the subset that matters most. The theorems that need more
 (per-line rounding accumulation, sign symmetry under `Int.ediv`) are
@@ -31,7 +31,7 @@ balance conservation theorem (Section 3), reversal cancellation
 Mapping to Rust crates documented at each section.
 
 **Lean proof**: `split_sums_to_gross` proven (the definition makes it a
-tautology — the point). `reversal_cancels`, `posting_sum_append`,
+tautology; the point). `reversal_cancels`, `posting_sum_append`,
 `reversal_sum_negates`, and `trial_balance` stated with `sorry` (they
 need mathlib's `ring` for integer list arithmetic). Three `sorry`s,
 each documented with what it needs and why.

@@ -1,0 +1,12 @@
+# accounting-spec
+
+> The formal specification and machine-checked Lean 4 proofs for the
+> WyattAu accounting estate: integer-minor-unit algebra, posting monoid,
+> balance conservation, reversal cancellation, rounding, hash-chain
+> tamper detection, each with its Rust mapping.
+
+- [SPEC](SPEC.md): the normative specification; theorems proven in
+  `lean/src/Accounting.lean`
+- [lean/](lean/): Lean 4 core + `omega`; `sorry`-free build is the gate
+- [ITERATIONS](ITERATIONS.md): research loop log
+- [README](README.md): why, layout, proof-checking procedure
