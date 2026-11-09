@@ -42,12 +42,12 @@ gap; model the hash chain symbolically; extract from Rust with Aeneas.
 ## Iteration 2 (2026-10-31)
 
 **Research**: Lean 4's `omega` tactic (Pugh's omega test, in core since
-4.x — linear integer arithmetic incl. division by constants), the new
+4.x - linear integer arithmetic incl. division by constants), the new
 `grind`/`lia` decision procedure in 4.35 (Cooper-style LIA with
 divisibility), core list lemmas (`List.sum_append`, `List.map_map`,
 `Function.comp_apply`), and the repo's own build system.
 
-**Analysis — two process defects found, not proof defects**:
+**Analysis - two process defects found, not proof defects**:
 
 1. **`lake build` verified nothing.** The lakefile declared no library
    target, so CI's build step was a no-op ("no targets specified"). The
@@ -55,19 +55,19 @@ divisibility), core list lemmas (`List.sum_append`, `List.map_map`,
    by hand. Fixed: `lean_lib` target + `defaultTargets` declared; a push
    now type-checks every proof.
 2. **Iteration 1's "needs mathlib" claim was never tested.** Ran the
-   goal shapes empirically: `omega` refuses them — not because they are
+   goal shapes empirically: `omega` refuses them - not because they are
    hard, but because its frontend type-sniffs operands and rejects
    terms typed through the `Amount`/`Posting` abbrevs ("no usable
    constraints", identical on 4.29 and 4.35). The tactic that closes
    them is 4.35's `grind` (integrated `lia`), which lacks the abbrev
    strictness. Mathlib remains unnecessary. Language check: Coq/Agda
    need stdlib imports for the same results; Lean 4.35 core is
-   self-sufficient here — keep the zero-dependency posture.
+   self-sufficient here - keep the zero-dependency posture.
 
-**Spec**: Added `reversal_involution` — SPEC §4's title claimed reversal
+**Spec**: Added `reversal_involution` - SPEC §4's title claimed reversal
 is an involution but no theorem stated it. Also strengthened the
 `reversal_cancels` note: the proof shows cancellation is unconditional
-(balancedness hypothesis unused) — kept in the signature for fidelity.
+(balancedness hypothesis unused) - kept in the signature for fidelity.
 
 **Lean proof**: All four `sorry`s closed: `posting_sum_append` (core
 `List.sum_append`), `reversal_sum_negates` (new helper `sum_map_neg` +
@@ -79,7 +79,7 @@ induction + `grind`), `reversal_cancels` (rewrite chain + `grind`),
 strictness; deterministic `rfl`+`rw` beats fragile `simp` composition
 for the involution).
 
-**Next**: the account dimension (SPEC §3 cannot be *stated* —
+**Next**: the account dimension (SPEC §3 cannot be *stated* -
 `Posting := Amount` erases it), multi-currency conservation, rounding
 error bounds, symbolic hash chain.
 
@@ -92,7 +92,7 @@ sorries. (Recorded by the parallel session.)
 ## Iteration 4 (2026-10-31)
 
 **Research**: TigerBeetle's ledger-tagged accounts
-(`accounts_must_have_the_same_ledger` — cross-currency posting made
+(`accounts_must_have_the_same_ledger` - cross-currency posting made
 *structurally* illegal; FX via two linked transfers and a liquidity
 account); Odoo's exchange-difference journal and
 `account.cash.rounding` accounts; ERPNext's `difference_amount == 0`
@@ -102,27 +102,27 @@ of the GL); Xero's per-document `CurrencyRate` warnings; IAS 21
 P&L); Ellerman's vector accounting (per-component conservation);
 Kennedy's units-of-measure (POPL '97) and its 2026 Lean mechanisation
 (arXiv:2609.38242). Rust money crates (`rusty-money`, `rust_decimal`)
-enforce same-currency arithmetic by runtime panic — none encodes
+enforce same-currency arithmetic by runtime panic - none encodes
 ledger-level conservation.
 
 **Finding**: per-currency conservation is *runtime-checked* everywhere
 and *proved nowhere*. TigerBeetle's check is an error code; Odoo's is a
 wizard; the documented failure mode (manual entries bypassing the
-wizard — "out by one cent" receivable dust) is exactly the leak the
+wizard - "out by one cent" receivable dust) is exactly the leak the
 theorem closes. The multi-currency extension is therefore a genuine
 specification contribution, not a re-derivation.
 
-**Spec**: new §8 — the currency view. `CPosting` carries the currency;
+**Spec**: new §8 - the currency view. `CPosting` carries the currency;
 `amountsIn`/`balanceOfIn` slice the algebra per currency; §7's currency
 bullet narrowed (conversion *mechanics* specified, rate discovery not).
 
 **Lean proof**: `amountsIn_append`, `trial_balance_currency`,
 `amounts_reverseCEntries`, `reversal_cancels_in`,
-`trial_balance_coverage` (§3 as stated — the chart must cover every
+`trial_balance_coverage` (§3 as stated - the chart must cover every
 posting's account and be `NoDup`; the sum of per-account balances over
 the chart equals the currency-slice total, hence zero),
 `conversion_source_balanced` / `conversion_target_balanced`
-(each conversion half is internally balanced — whatever the rate does,
+(each conversion half is internally balanced - whatever the rate does,
 conservation is untouched), `conversion_preserves` (inductive under
 posting *and* conversion). Zero sorries, `lake build` green.
 
@@ -131,28 +131,28 @@ posting *and* conversion). Zero sorries, `lake build` green.
 - Core Lean 4 has **no `List.NoDup`** (mathlib-only); a local 2-
   constructor inductive is sufficient and keeps the zero-dependency
   posture.
-- `cases` on an indexed family *substitutes the index everywhere* —
+- `cases` on an indexed family *substitutes the index everywhere* -
   naming the case `@cons a l hnot hndrest` is mandatory if the rest of
   the proof mentions the substituted term; partial `@cons x y` bindings
   silently bind the *indices*, not the fields.
 - `rw [def]` unfolds at the first match and breaks later pattern matches
-  that still expect the folded form — prove the rfl cons-equation
+  that still expect the folded form - prove the rfl cons-equation
   (`amountsIn_cons`, `balanceOfIn_cons`) and rewrite with that instead.
 - Dot-notation `.symm` on `¬(a = b)` fails (head symbol is `→`, not
   `Ne`); write `fun hcon => h hcon.symm`.
 - Coverage insight: entry-level balancedness does *not* induct (entry
   `p :: rest` balanced says nothing about `rest`); the correct route is
-  the exchange lemma `coverage_exchange` — chart-sum equals slice-sum —
+  the exchange lemma `coverage_exchange` - chart-sum equals slice-sum -
   then the balancedness hypothesis lands at the top level.
 
 **Next**: rounding error bounds (`|d·round(n,d) − n| ≤ d/2` for half-up
 on magnitude), sign symmetry, VAT split bounds, the corrected per-line
-drift bound (⌈n·k/2⌉ in §5 is loose — tight is k·⌊n/2⌋ per rate), then
+drift bound (⌈n·k/2⌉ in §5 is loose - tight is k·⌊n/2⌋ per rate), then
 the symbolic hash chain.
 
 ## Iteration 5 (2026-10-31)
 
-**Research**: rounding practice survey — Stripe ("rounds tax half up",
+**Research**: rounding practice survey - Stripe ("rounds tax half up",
 per line item before summing), Xero (per-line, half-to-even + manual
 rounding line), Odoo (`round_per_line` default vs `round_globally`,
 cash-rounding loss accounts), QuickBooks (per-line, filing drift
@@ -162,19 +162,19 @@ EU VAT Directive 2006/112/EC + Reg 282/2011 mandate no union mode;
 HMRC Notice 700 §17.5 permits round-*down* per line; half-up on
 magnitude is de-facto commercial norm (DIN 1333, Java `HALF_UP`).
 Summation-rounding analysis: Higham *Accuracy and Stability of
-Numerical Algorithms* §3.1, Goldberg CACM 31 (1991) — per-line tax
+Numerical Algorithms* §3.1, Goldberg CACM 31 (1991) - per-line tax
 drift is a corollary of standard analysis, no invoice-specific paper
 exists. Lean 4 core: `/` is Euclidean (`Int.ediv`), remainder
 `0 ≤ r < |d|`; `omega` handles division by *literal* denominators only
-and **rejects nonlinear monomials** (`d * (x / d)` — the atom-abstracted
+and **rejects nonlinear monomials** (`d * (x / d)` - the atom-abstracted
 product kills the fact); `Int.emod_add_mul_ediv`,
 `Int.emod_nonneg`, `Int.emod_lt_of_pos`, `Int.add_sub_cancel` are the
 working core set.
 
-**Finding**: the mode is policy but the *bound is mode-robust* — every
+**Finding**: the mode is policy but the *bound is mode-robust* - every
 nearest-rounding mode keeps each rounding within half a minor unit,
 which is what makes per-line drift composable at all. And the SPEC's
-⌈n·k/2⌉ drift claim (§5.3) is loose; the tight bound is k·⌊n/2⌋ — that
+⌈n·k/2⌉ drift claim (§5.3) is loose; the tight bound is k·⌊n/2⌋ - that
 correction is Iteration 6's deliverable.
 
 **Spec**: §5 gains Theorem 5.1b (two-sided rounding error bound), the
@@ -182,8 +182,8 @@ VAT-error corollary, and the restatement definition (magnitude-then-sign
 is *the proof* of 5.2, not an implementation detail).
 
 **Lean proof**: `roundHalfUp_error` (via `Int.emod_add_mul_ediv` +
-`generalize` of the nonlinear monomial — see notes),
-`vat_error_bound` (definitional corollary — the split's vat *is*
+`generalize` of the nonlinear monomial - see notes),
+`vat_error_bound` (definitional corollary - the split's vat *is*
 `roundHalfUp (gross·rate) (1000+rate)`), `restate`,
 `restate_sign_symmetry` (`Int.sign_neg` + `Int.natAbs_neg` +
 `Int.neg_mul`). Zero sorries, `lake build` green.
@@ -194,32 +194,32 @@ is *the proof* of 5.2, not an implementation detail).
   (`r + d·q = s`): abstract the monomial with `generalize hm : d * (x/d)
   = m at h1 ⊢`, then everything is linear and omega closes.
 - `(by omega)` inside a lemma application whose implicit argument is
-  still a metavariable elaborates against `?b ≠ 0` — unconstrained, it
+  still a metavariable elaborates against `?b ≠ 0` - unconstrained, it
   fails with a junk counterexample and silently plants `sorry`. Bind
   the implicit first (`have hd0 : d ≠ 0 := by omega`), then pass it.
 - `rw [← h4]` on a goal containing the *same subterm inside another
-  operator* (`%`) rewrites in unintended positions — prefer proving a
+  operator* (`%`) rewrites in unintended positions - prefer proving a
   standalone `hdq` equation and rewriting with that.
 - `Int.neg_mul` closes sign-symmetry after `sign_neg`/`natAbs_neg`.
 
-**Next**: the per-line vs per-document drift bound — correct §5.3 to
+**Next**: the per-line vs per-document drift bound - correct §5.3 to
 the tight form (`2·|D| ≤ n` per rate, `k·⌊n/2⌋` across `k` rates) and
 prove it; then the symbolic hash chain.
 
-## Iteration 3 (2026-10-31) — the Ellerman track
+## Iteration 3 (2026-10-31): the Ellerman track
 
 **Research**: Ellerman's mathematical treatment of double-entry
-bookkeeping (arXiv:1407.1898) — DEB is the group of differences over
+bookkeeping (arXiv:1407.1898) - DEB is the group of differences over
 "T-accounts", generalised to multidimensional value vectors: an account
 is a *dimension* of the vector, not a label to erase. Cardano's Agda
 ledger specification does the same independently (entries as maps over
 addresses). TigerBeetle's account model (fixed two-phase balances).
 
 **Analysis**: SPEC §3 (trial balance per account) was UNSTATABLE in the
-Lean layer — `Posting := Amount` had erased the account dimension. That
+Lean layer - `Posting := Amount` had erased the account dimension. That
 is a spec defect, not a proof defect. Ellerman's vector view is the
 cutting-edge-correct model; other ecosystems (Cardano/Agda) formalise
-entries as maps, which needs Finset/finite-map support — mathlib
+entries as maps, which needs Finset/finite-map support - mathlib
 territory. Core-only alternative: postings carry `account : Nat`, the
 balance is a `foldr` with an account test, and conservation stays in the
 amount view (§2), of which the account view is a lift.
@@ -228,17 +228,17 @@ amount view (§2), of which the account view is a lift.
 Amount`) and the account view (§2b: `Posting` structure, `amounts`
 projection, `balanceOf`). SPEC §3 updated: per-account balances are now
 formal; the *coverage* form of the trial balance (sum over a covering
-account list, NoDup required — duplicated accounts double-count, which
+account list, NoDup required - duplicated accounts double-count, which
 the Rust `TrialBalance` must respect) is recorded as the next open
 theorem.
 
 **Lean proof** (new theorems, all machine-proved): `amounts_append`,
 `amounts_reverseEntries`, `balanceOf_append`, `balanceOf_nil`,
 `balanceOf_reverseEntries`, `entry_reversal_cancels` (the §4
-cancellation lifted through the projection — one-line corollary, no new
+cancellation lifted through the projection - one-line corollary, no new
 proof effort). Proof-engineering findings: `if_pos`/`if_neg` are
 deprecated in 4.35 and their `rw` forms mis-fire inside `split` branches
-— use `split` + explicit `Int.add_assoc`/`Int.neg_add` rewrites instead;
+- use `split` + explicit `Int.add_assoc`/`Int.neg_add` rewrites instead;
 `List.foldr`-based definitions give `rfl` cons-equations, while
 filter-based ones pull `decide` into every goal.
 
@@ -254,70 +254,70 @@ amounts); It 9 append-only ledger axioms; It 10 extraction bridge
 
 ## Iteration 6 (2026-10-31)
 
-**Research**: continued from 5's rounding survey — Higham §3.1/Goldberg
+**Research**: continued from 5's rounding survey - Higham §3.1/Goldberg
 summation analysis gives per-line drift as a corollary; the SPEC's
 ⌈n·k/2⌉ was checked against the sharp half-up error and found loose
 (tight: k·⌊n/2⌋, attained by double `.5` ties).
 
-**Finding — two process defects caught by the compiler itself**:
+**Finding - two process defects caught by the compiler itself**:
 
 1. The earlier sharp-bound claim `2 − d ≤ 2·err` was **false** for odd
    `d` (omega produced a real counterexample: `d = 3, r = 2`). Correct
-   uniform form: `1 − d ≤ 2·err ≤ d` — the bottom end is *strictly*
+   uniform form: `1 − d ≤ 2·err ≤ d` - the bottom end is *strictly*
    above `−d`, and that strictness is exactly what tightens the drift
    from ⌈n/2⌉ to ⌊n/2⌋.
 2. **omega rejects every hypothesis containing a nonlinear monomial**
-   (`d * (x / d)`, `n * d`) — silently, with a junk counterexample. All
+   (`d * (x / d)`, `n * d`) - silently, with a junk counterexample. All
    multiplicative reasoning must be done at term level with core mul
    lemmas; omega only ever sees the linear residue. This forced the
    generic `sum_bounded` ("n terms each ≤ hi sum to ≤ n·hi") to be
    proved once by induction at term level, then *used* as rewrite
    steps.
 
-**Spec**: §5.3 restated — `2·|per_line − per_doc| ≤ n` per rate,
+**Spec**: §5.3 restated - `2·|per_line − per_doc| ≤ n` per rate,
 `k·⌊n/2⌋` across `k` rates, tightness note.
 
 **Lean proof**: `roundHalfUp_error_sharp` (strict bottom),
 `sum_map_sub`, `sum_bounded` (+`_hi`/`_lo`), `sum_const_mul`,
-`perLine`/`perDoc`, `drift_bound` — the final contradiction combines
+`perLine`/`perDoc`, `drift_bound` - the final contradiction combines
 `Σerr ≤ n·d`, `docerr ≥ 1 − d`, and integrality of `K := per_line −
 per_doc` at term level (`Int.mul_le_mul_left` iff, `Int.mul_sub`,
-`Classical.byContradiction` — note: core has **no** `by_contra` and
+`Classical.byContradiction` - note: core has **no** `by_contra` and
 **no** `List.NoDup`). Zero sorries, `lake build` green.
 
 **Next**: symbolic hash chain (kill the `True := trivial` placeholder);
-i64 overflow safety — research Digest warning: per-entry bounds do NOT
+i64 overflow safety - research Digest warning: per-entry bounds do NOT
 bound partial sums (StellarGate #622/#625), the provable shape is the
 post-time check, inductive over posts.
 
 ## Iteration 7 (2026-10-31)
 
-**Research**: Toychain (Pîrlea & Sergey, CPP 2018) — the symbolic-hash
+**Research**: Toychain (Pîrlea & Sergey, CPP 2018) - the symbolic-hash
 axiom is a single injectivity axiom; Verdi itself has no hash module
-(the "Verdi-style hash" was a misremembering — what Verdi contributes
+(the "Verdi-style hash" was a misremembering - what Verdi contributes
 is the minimal-explicit-axiom method); HACL*/Isabelle `ADS_Functor`
-use the disjunctive `P ∨ collision` form; A2M/TrInc — equivocation
-detection; RFC 6962 — domain separation; TigerBeetle/XRPL/Hyperledger
-— tests only, no machine-checked chain proofs anywhere (Lean first:
+use the disjunctive `P ∨ collision` form; A2M/TrInc - equivocation
+detection; RFC 6962 - domain separation; TigerBeetle/XRPL/Hyperledger
+- tests only, no machine-checked chain proofs anywhere (Lean first:
 first-tamper-localization is ours).
 
-**Finding**: the naive "unique chain" theorem is FALSE — different
+**Finding**: the naive "unique chain" theorem is FALSE - different
 payloads are legitimately different valid chains of the same length
 from the same prior hash (accounting, not tampering). The honest
 theorems are: injectivity of the step hash, valid append, and tamper
 *localization* (first-divergence), which the linear chain gives for
 free.
 
-**Spec**: §6 replaced — the placeholder `True := trivial` is gone;
+**Spec**: §6 replaced - the placeholder `True := trivial` is gone;
 6.2 valid append, 6.3 tamper localization, with the anchored-head
 scope stated honestly. Integrator note recorded: `ledger-pg`'s
 `CHAIN DEBUG` eprintln should be removed.
 
 **Lean proof**: `SymHash`/`symHashOf`/`symHashOf_inj` (Toychain
-shape), `Entry`, `stepHash` (noncomputable — axioms don't compile),
+shape), `Entry`, `stepHash` (noncomputable - axioms don't compile),
 `validChain`/`chainEnd`, `stepHash_inj` (via `Prod.mk.injEq`),
 `stepHash_congr`, `validChain_cons` (rfl), `valid_append` (induction
-generalizing h — the claim composes through `chainEnd`'s definitional
+generalizing h - the claim composes through `chainEnd`'s definitional
 cons-case), `tamper_detected`. Zero sorries, `lake build` green.
 
 **Proof-engineering**: `set` is mathlib-only; `by_contra` is
@@ -326,37 +326,37 @@ mathlib-only (`Classical.byContradiction` is the core route);
 hypotheses with projection-heads needs `simp` first; a doc-comment
 must attach to a declaration (two stacked `/--` = parse error).
 
-**Next**: i64 overflow (per-entry bounds do NOT bound partial sums —
+**Next**: i64 overflow (per-entry bounds do NOT bound partial sums -
 StellarGate #625; the provable shape is the post-time check,
 inductive over posts); append-only/permutation invariance; idempotent
 posting; the extraction bridge (Aeneas/hax decision matrix).
 
-## Iteration 8 (2026-11-09) — i64 overflow: the post-time check is the theorem
+## Iteration 8 (2026-11-09) - i64 overflow: the post-time check is the theorem
 
 StellarGate #625's story, proved in both directions:
 
 - `per_entry_not_sum_bound`: **per-entry bounds do NOT bound partial
-  sums** — for any bound B > 0 and any target T, `(T.natAbs + 2)` posts
+  sums** - for any bound B > 0 and any target T, `(T.natAbs + 2)` posts
   of +B exceed T (division-free witness; `T.natAbs` dodges the
   variable-division opacity grind cannot see through).
-- `applyGuarded` / `runGuarded`: the post-time check — a post applies
+- `applyGuarded` / `runGuarded`: the post-time check - a post applies
   only when the resulting balance stays in the operating window
   `[lo, hi]`; rejection is a no-op.
-- `runGuarded_bounded`: **the window invariant** — induction over posts
+- `runGuarded_bounded`: **the window invariant** - induction over posts
   carries the window from an in-window opening balance. THE overflow
   theorem.
 - `runGuarded_i64_safe`: with `[lo, hi]` inside the i64 range, the
   running balance is representable at every prefix.
 - `allAccepted` / `runGuarded_accepts_eq`: when every post is accepted,
   the guarded runner is exactly the opening balance plus the §2 amount
-  projection's sum — the guard never distorts an accepted book.
+  projection's sum - the guard never distorts an accepted book.
 
 **Proof-engineering (new for this iteration)**: omega rejects goals
 whose atoms are typed through the `Amount` abbrev ("no usable
-constraints") — state helper theorems with plain `Int` binders (defeq
+constraints") - state helper theorems with plain `Int` binders (defeq
 to Amount for callers) and close with `grind` (4.35's Cooper LIA,
 abbrev-agnostic). grind cannot see through variable-division atoms
-(`B * (T / B)` is opaque to the spec of `T`) — pick witnesses without
+(`B * (T / B)` is opaque to the spec of `T`) - pick witnesses without
 division. Cast-over-sum (`↑(m + 1)`) blocks `Int.mul_add`; use
 `Int.natCast_add` + `Int.add_mul` (core names: `mul_le_mul_of_nonneg_*`
 are the only mul-monotonicity lemmas). Scratch-file probes via
