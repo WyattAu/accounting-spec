@@ -4,7 +4,7 @@
 
 ### Iteration 4
 
-- SPEC §8: the currency view — per-currency conservation, the coverage
+- SPEC §8: the currency view - per-currency conservation, the coverage
   trial balance over a `NoDup` chart, and well-formed conversion
   entries (every residual has an account).
 - Lean: `trial_balance_currency`, `trial_balance_coverage`,
@@ -15,7 +15,7 @@
 ### Iteration 7
 
 - SPEC §6 replaced: the symbolic hash chain is now specified and
-  proved — injective step hash, valid append, tamper localization
+  proved - injective step hash, valid append, tamper localization
   (first-divergence, linear-chain-specific). The `True := trivial`
   placeholder is gone.
 - Integrator note: `ledger-pg` `CHAIN DEBUG` eprintln to remove.

@@ -237,8 +237,7 @@ theorem.
 `balanceOf_reverseEntries`, `entry_reversal_cancels` (the §4
 cancellation lifted through the projection - one-line corollary, no new
 proof effort). Proof-engineering findings: `if_pos`/`if_neg` are
-deprecated in 4.35 and their `rw` forms mis-fire inside `split` branches
-- use `split` + explicit `Int.add_assoc`/`Int.neg_add` rewrites instead;
+deprecated in 4.35 and their `rw` forms mis-fire inside `split` branches - use `split` + explicit `Int.add_assoc`/`Int.neg_add` rewrites instead;
 `List.foldr`-based definitions give `rfl` cons-equations, while
 filter-based ones pull `decide` into every goal.
 
@@ -297,8 +296,7 @@ axiom is a single injectivity axiom; Verdi itself has no hash module
 (the "Verdi-style hash" was a misremembering - what Verdi contributes
 is the minimal-explicit-axiom method); HACL*/Isabelle `ADS_Functor`
 use the disjunctive `P ∨ collision` form; A2M/TrInc - equivocation
-detection; RFC 6962 - domain separation; TigerBeetle/XRPL/Hyperledger
-- tests only, no machine-checked chain proofs anywhere (Lean first:
+detection; RFC 6962 - domain separation; TigerBeetle/XRPL/Hyperledger - tests only, no machine-checked chain proofs anywhere (Lean first:
 first-tamper-localization is ours).
 
 **Finding**: the naive "unique chain" theorem is FALSE - different

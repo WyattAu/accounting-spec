@@ -9,7 +9,7 @@ mechanically in [`lean/src/Accounting.lean`](lean/src/Accounting.lean);
 this document is the human-readable companion.
 
 **Status (Iteration 2)**: every theorem in the Lean file is machine-proved
-with Lean 4 core alone — zero `sorry`s, zero dependencies, and `lake build`
+with Lean 4 core alone - zero `sorry`s, zero dependencies, and `lake build`
 type-checks all of them (the library target is declared; previously CI
 verified nothing). See ITERATIONS.md for the research loop.
 
@@ -55,13 +55,13 @@ The **balance** of an account `a` in a ledger `L`:
 
     balance(L, a) := Σ { p.amount | p ∈ L, p.account = a }
 
-**Formal status (Iteration 3)**: the account dimension is now modelled —
+**Formal status (Iteration 3)**: the account dimension is now modelled -
 `Posting` carries `account : Nat`, `balanceOf` is the per-account fold,
 and the append law (`balanceOf (x ++ y) a = balanceOf x a + balanceOf y a`)
 plus the per-account reversal law (`balanceOf (reverseEntries ps) a =
 −balanceOf ps a`) are machine-proved. The coverage form (Σ over a
 covering, duplicate-free account list = 0) is the next open theorem;
-its `NoDup` side-condition is load-bearing — a duplicated account
+its `NoDup` side-condition is load-bearing - a duplicated account
 double-counts, and the Rust `TrialBalance` must iterate distinct
 accounts.
 
@@ -122,7 +122,7 @@ half-up rounding lands within half a minor unit of the exact quotient:
 
     −d/2 ≤ d · round(n, d) − n ≤ d/2
 
-Two-sided — the form the drift bound (Theorem 5.3) composes. The bound
+Two-sided - the form the drift bound (Theorem 5.3) composes. The bound
 is mode-robust: every nearest-rounding mode satisfies it, so switching
 `TieMode` cannot leak more than half a minor unit per rounding.
 
@@ -156,7 +156,7 @@ at most `⌊n/2⌋` minor units:
     2 · |per_line_total − per_document_total| ≤ n
 
 Across `k` rates the total drift is at most `k·⌊n/2⌋`. The earlier
-claim `⌈n·k/2⌉` was valid but loose by up to `(k−1)/2` — the tight form
+claim `⌈n·k/2⌉` was valid but loose by up to `(k−1)/2` - the tight form
 follows from the *strict* bottom end of the sharp error bound (5.1b):
 half-up's error is strictly greater than `−d/2` because the Euclidean
 remainder is at most `d − 1`. Attained: two lines each with an exact
@@ -166,14 +166,14 @@ remainder is at most `d − 1`. Attained: two lines each with an exact
 `PerDocument`. The property test bounded the drift; the theorem pins the
 tight constant.
 
-## 6. The hash chain — symbolic model (Iteration 7)
+## 6. The hash chain - symbolic model (Iteration 7)
 
 A chain entry is a pair `(payload, prevHash)`; the chained hash is
 
     stepHash(e) := SHA256(canonical(e.payload) ∥ e.prevHash)
 
 modelled symbolically as an injective function on the canonical pair
-(the Toychain axiom shape — Pîrlea & Sergey, CPP 2018). Injectivity
+(the Toychain axiom shape - Pîrlea & Sergey, CPP 2018). Injectivity
 idealizes collision resistance; no preimage axiom is needed, because
 detection never inverts a hash.
 
@@ -184,8 +184,8 @@ extends the chain validly:
       → validChain(h, es ++ [e'])
 
 **Theorem 6.3** (Tamper localization). Replacing the head entry of a
-valid chain continuation with a different entry — whatever previous
-hash the attacker claims — invalidates it:
+valid chain continuation with a different entry - whatever previous
+hash the attacker claims - invalidates it:
 
     validChain(stepHash(e), r :: rs) ∧ stepHash(e') ≠ stepHash(e)
       → ¬validChain(stepHash(e'), r :: rs)
@@ -194,14 +194,14 @@ This is the first-divergence localization a linear chain gives for
 free: the mismatch pinpoint's the tampered position (a Merkle root
 mismatch only says "something", not "where"). Scope: tampering with
 the *last* entry changes only the end hash, whose detection requires
-the anchored head — stated with the head as hypothesis, since whoever
+the anchored head - stated with the head as hypothesis, since whoever
 can rewrite the whole chain *and* the head passes any internal check.
 
 **Rust mapping**: `ledger-pg`'s `verify_chain` (`ChainVerification`/
-`ChainBreak` at the first mismatch — the localization, implemented)
+`ChainBreak` at the first mismatch - the localization, implemented)
 and `ledger-kit`'s `verify_chain` (via `tamper-audit`, SHA-256).
 Note for integrators: `ledger-pg` currently logs a `CHAIN DEBUG`
-eprintln in the hash-mismatch path — remove before the next release.
+eprintln in the hash-mismatch path - remove before the next release.
 
 ## 7. What is deliberately not specified
 
@@ -213,7 +213,7 @@ eprintln in the hash-mismatch path — remove before the next release.
   specified; the law is not.
 - **Float behavior**: there is none. The specification has no float type.
 
-## 8. The currency view — per-currency conservation
+## 8. The currency view - per-currency conservation
 
 Currencies are dimensions exactly as accounts are (§2b, one level up): a
 posting carries `(account, currency, amount)`, and the conservation law
@@ -241,7 +241,7 @@ chart is zero:
     Σ { balanceOfIn(led, c, a) | a ∈ chart } = 0
 
 This is §3's trial balance stated the way the report actually computes
-it: per account, over the chart of accounts. `NoDup` is load-bearing —
+it: per account, over the chart of accounts. `NoDup` is load-bearing -
 a duplicated chart entry would double-count. The theorem is what makes
 the runtime check *a check with content*: it recomputes the invariant
 by a different route (per-account, not per-entry) and must land on the
@@ -253,7 +253,7 @@ entries: `v` moves from the source account to the FX account within `c`;
 the converted amount moves from the FX account to the target account
 within `d`. Appending any sequence of such entries to a
 per-currency-balanced journal keeps it balanced in every currency. The
-FX account carries the cross-currency exposure — measurable, auditable,
+FX account carries the cross-currency exposure - measurable, auditable,
 never a silent leak.
 
 **Rust mapping**: `double_entry`'s `PostError::MixedCurrencies` and
@@ -264,5 +264,5 @@ cross-ledger transfers illegal (`accounts_must_have_the_same_ledger`);
 ERP practice (Odoo's exchange-difference journal, ERPNext's
 `difference_amount == 0` gate) requires every residual to land on a
 named account. Per-currency conservation is *enforced at runtime*
-everywhere we checked and *proved* nowhere — this section is the
+everywhere we checked and *proved* nowhere - this section is the
 proof.
