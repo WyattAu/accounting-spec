@@ -48,6 +48,7 @@ divisibility), core list lemmas (`List.sum_append`, `List.map_map`,
 `Function.comp_apply`), and the repo's own build system.
 
 **Analysis — two process defects found, not proof defects**:
+
 1. **`lake build` verified nothing.** The lakefile declared no library
    target, so CI's build step was a no-op ("no targets specified"). The
    four `sorry`s were visible only because someone ran `lake env lean`
@@ -126,6 +127,7 @@ conservation is untouched), `conversion_preserves` (inductive under
 posting *and* conversion). Zero sorries, `lake build` green.
 
 **Proof-engineering notes**:
+
 - Core Lean 4 has **no `List.NoDup`** (mathlib-only); a local 2-
   constructor inductive is sufficient and keeps the zero-dependency
   posture.
@@ -187,6 +189,7 @@ is *the proof* of 5.2, not an implementation detail).
 `Int.neg_mul`). Zero sorries, `lake build` green.
 
 **Proof-engineering notes**:
+
 - omega rejects *linear-in-atoms but nonlinear-in-variables* facts
   (`r + d·q = s`): abstract the monomial with `generalize hm : d * (x/d)
   = m at h1 ⊢`, then everything is linear and omega closes.
@@ -203,7 +206,7 @@ is *the proof* of 5.2, not an implementation detail).
 the tight form (`2·|D| ≤ n` per rate, `k·⌊n/2⌋` across `k` rates) and
 prove it; then the symbolic hash chain.
 
-## Iteration 3 (2026-10-31)
+## Iteration 3 (2026-10-31) — the Ellerman track
 
 **Research**: Ellerman's mathematical treatment of double-entry
 bookkeeping (arXiv:1407.1898) — DEB is the group of differences over
@@ -257,6 +260,7 @@ summation analysis gives per-line drift as a corollary; the SPEC's
 (tight: k·⌊n/2⌋, attained by double `.5` ties).
 
 **Finding — two process defects caught by the compiler itself**:
+
 1. The earlier sharp-bound claim `2 − d ≤ 2·err` was **false** for odd
    `d` (omega produced a real counterexample: `d = 3, r = 2`). Correct
    uniform form: `1 − d ≤ 2·err ≤ d` — the bottom end is *strictly*
