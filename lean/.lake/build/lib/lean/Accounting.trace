@@ -1,19 +1,85 @@
 {"synthetic": false,
  "schemaVersion": "2025-09-10",
  "outputs":
- {"o": ["cd1975e63cc9500b.olean"],
+ {"o": ["e007e6e659a8d74c.olean"],
   "m": false,
-  "i": "0a9995b5626da4d2.ilean",
-  "c": "a0b024164348b9d9.c"},
+  "i": "af1838a7a66f7eb7.ilean",
+  "c": "911eeefbd4a58bb7.c"},
  "log":
  [{"message":
    ".> LEAN_PATH=/home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/lib/lean /home/wyatt/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/src/Accounting.lean -o /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/lib/lean/Accounting.olean -i /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/lib/lean/Accounting.ilean -c /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/ir/Accounting.c --setup /home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/.lake/build/ir/Accounting.setup.json --json",
    "level": "trace"},
   {"message":
-   "src/Accounting.lean:216:36: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "src/Accounting.lean:220:36: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
    "level": "warning"},
   {"message":
-   "src/Accounting.lean:217:36: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "src/Accounting.lean:221:36: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:450:10: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:450:20: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:451:10: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:451:20: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:497:27: This simp argument is unused:\n  reversePosting\n\nHint: Omit it from the simp argument list.\n  [apply] simp [h, reverseAll, List.map_cons]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:497:43: This simp argument is unused:\n  List.map_cons\n\nHint: Omit it from the simp argument list.\n  [apply] simp [h, reverseAll, reversePosting]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:538:38: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:556:12: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:563:12: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:599:16: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:599:33: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:600:16: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:600:47: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:604:26: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:609:32: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:610:41: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:610:53: This simp argument is unused:\n  List.sum_cons\n\nHint: Omit it from the simp argument list.\n  [apply] simp only [step, amountsIn_cons, if_neg hpc]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:790:11: `simp` already closes the goal\n\nHint: Use `simp` instead of `simpa`:\n  [apply] simp\n\nNote: This linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:967:7: Variable name `n` is not explicitly referenced.\n\nHint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:\n  [apply] _n\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:1013:5: Variable name `horder` is not explicitly referenced.\n\nHint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:\n  [apply] _horder\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:1044:6: `if_neg` has been deprecated: Use `ite_eq_right` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲",
+   "level": "warning"},
+  {"message":
+   "src/Accounting.lean:1069:10: `if_pos` has been deprecated: Use `ite_eq_left` instead\n\nHint: Replace the deprecated name:\n  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲",
    "level": "warning"}],
  "inputs":
  [["deps",
@@ -28,10 +94,10 @@
   ["Lean 4.35.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
    "407ce514b71d5a10"],
   ["/home/wyatt/dev/src/github.com/WyattAu/accounting-spec/lean/src/Accounting.lean",
-   "c1a4ab6b49503645"],
+   "3f777612067c4791"],
   ["options", "00000000000006bb"],
   ["isModule: false", "feefd2a0d3a1847e"],
   ["Module.name: Accounting", "3b81d3b4d9113077"],
   ["Package.id?: (some accounting)", "30eb8348dc4d92c2"],
   ["Module.leanArgs: #[]", "00000000000006bb"]],
- "depHash": "876aecea8635841f"}
+ "depHash": "0cb76b6618d95e4a"}

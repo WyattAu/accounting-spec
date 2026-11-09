@@ -950,3 +950,125 @@ theorem drift_bound (xs : List Int) (d : Int) (hd : 0 < d) :
         ≤ -(xs.length : Int) := by omega
     exact absurd (Int.le_trans hge2 (Int.le_trans hle2 hfinal2))
       (by omega)
+/-! ## Section 8: The post-time check — i64 overflow cannot happen (Iteration 8)
+
+StellarGate #625: every post was validated within per-entry bounds, yet the
+running i64 balance overflowed. Per-entry bounds do not bound partial sums
+(the theorem below). The provable shape is the *post-time check*: a post is
+accepted only if the resulting balance stays inside the operating window.
+Induction over the posts then carries the window invariant, so the
+accumulator is representable at every prefix. -/
+
+/-- **Per-entry bounds do not bound partial sums** (StellarGate #625):
+for any per-entry bound `B > 0` and any target `T`, enough max-magnitude
+posts blow past `T`. This is why validation must happen at post time
+against the running balance — no per-entry check can prevent overflow. -/
+theorem per_entry_not_sum_bound (B : Int) (hB : 0 < B) (T : Int) :
+    ∃ (n : Nat) (ps : List Posting),
+      (∀ p ∈ ps, -B ≤ p.amount ∧ p.amount ≤ B) ∧ T < (amounts ps).sum := by
+  have hsum : ∀ (k : Nat) (p : Posting),
+      ((List.replicate k p).map (·.amount)).sum = (k : Int) * p.amount := by
+    intro k
+    induction k with
+    | zero => intro _; simp
+    | succ m ih =>
+      intro p
+      rw [List.replicate_succ, List.map_cons, List.sum_cons, ih]
+      rw [Int.natCast_add, Int.add_mul]
+      grind
+  refine ⟨T.natAbs + 2,
+    List.replicate (T.natAbs + 2) { account := 0, amount := B }, ?_, ?_⟩
+  · intro p hp
+    rw [List.eq_of_mem_replicate hp]
+    show -B ≤ B ∧ B ≤ B
+    exact ⟨by grind, by grind⟩
+  · simp only [amounts]
+    have hX : ({ account := 0, amount := B } : Posting).amount = B := rfl
+    rw [hsum, hX]
+    by_cases hT : 0 ≤ T
+    · rw [Int.natCast_add, Int.add_mul, Int.natAbs_of_nonneg hT]
+      have hge : T * 1 ≤ T * B :=
+        Int.mul_le_mul_of_nonneg_left (by grind : (1 : Int) ≤ B) hT
+      rw [Int.mul_one] at hge
+      grind
+    · rw [Int.natCast_add, Int.add_mul]
+      have hprod : 0 ≤ (↑(T.natAbs) : Int) * B :=
+        Int.mul_nonneg (Int.natCast_nonneg _) (Int.le_of_lt hB)
+      grind
+
+/-- The post-time check: a post is applied only when the resulting
+balance stays in `[lo, hi]`; rejected posts leave the balance unchanged. -/
+def applyGuarded (lo hi : Amount) (bal : Amount) (p : Posting) : Amount :=
+  if lo ≤ bal + p.amount ∧ bal + p.amount ≤ hi then bal + p.amount else bal
+
+/-- The guarded ledger runner: fold the post-time check over the posts
+from an opening balance. -/
+def runGuarded (lo hi : Amount) (start : Amount) (ps : List Posting) : Amount :=
+  ps.foldl (applyGuarded lo hi) start
+
+/-- **The window invariant** (post-time check, inductive over posts): if
+the opening balance is inside the window, so is the balance after any
+number of guarded posts — accepted or rejected. -/
+theorem runGuarded_bounded (ps : List Posting) (lo hi start : Amount)
+    (horder : lo ≤ hi) (hstart : lo ≤ start ∧ start ≤ hi) :
+    lo ≤ runGuarded lo hi start ps ∧ runGuarded lo hi start ps ≤ hi := by
+  induction ps generalizing start with
+  | nil => exact hstart
+  | cons p rest ih =>
+    have hstep : runGuarded lo hi start (p :: rest)
+        = runGuarded lo hi (applyGuarded lo hi start p) rest := rfl
+    rw [hstep]
+    have hinv : lo ≤ applyGuarded lo hi start p ∧ applyGuarded lo hi start p ≤ hi := by
+      unfold applyGuarded
+      split
+      · next hc => exact ⟨hc.1, hc.2⟩
+      · exact hstart
+    exact ih (applyGuarded lo hi start p) hinv
+
+/-- **i64 safety**: with the operating window inside the i64 range, the
+guarded running balance is representable at every prefix — the post-time
+check *is* the overflow argument. -/
+theorem runGuarded_i64_safe (ps : List Posting) (lo hi start : Amount)
+    (horder : lo ≤ hi) (hstart : lo ≤ start ∧ start ≤ hi)
+    (hlo : -(2 ^ 63) ≤ lo) (hhi : hi < 2 ^ 63) :
+    -(2 ^ 63) ≤ runGuarded lo hi start ps ∧ runGuarded lo hi start ps < 2 ^ 63 := by
+  have h := runGuarded_bounded ps lo hi start horder hstart
+  exact ⟨Int.le_trans hlo h.1, Int.lt_of_le_of_lt h.2 hhi⟩
+
+/-- **Rejection is a no-op**: a post the check rejects does not move the
+balance — acceptance, not bookkeeping, is what changes state. -/
+theorem applyGuarded_reject (lo hi bal : Amount) (p : Posting)
+    (h : ¬ (lo ≤ bal + p.amount ∧ bal + p.amount ≤ hi)) :
+    applyGuarded lo hi bal p = bal := by
+  unfold applyGuarded
+  rw [if_neg h]
+
+/-- Acceptance of a posting list against a running balance: each head
+post is checked, then the tail from the updated balance. -/
+def allAccepted (lo hi : Amount) (start : Amount) (ps : List Posting) : Prop :=
+  match ps with
+  | [] => True
+  | p :: rest =>
+    lo ≤ start + p.amount ∧ start + p.amount ≤ hi ∧
+      allAccepted lo hi (start + p.amount) rest
+
+/-- **Agreement with the §2 algebra**: when every post is accepted, the
+guarded runner is exactly the opening balance plus the amount
+projection's sum — the guard never distorts an accepted book. -/
+theorem runGuarded_accepts_eq (ps : List Posting) (lo hi start : Int)
+    (h : allAccepted lo hi start ps) :
+    runGuarded lo hi start ps = start + (amounts ps).sum := by
+  induction ps generalizing start with
+  | nil => simp [runGuarded, amounts]
+  | cons p rest ih =>
+    have hstep : runGuarded lo hi start (p :: rest)
+        = runGuarded lo hi (applyGuarded lo hi start p) rest := rfl
+    rw [hstep]
+    have hacc : applyGuarded lo hi start p = start + p.amount := by
+      unfold applyGuarded
+      rw [if_pos (And.intro h.1 h.2.1)]
+    rw [hacc]
+    have hrest := ih (start + p.amount) h.2.2
+    rw [hrest]
+    simp only [amounts, List.map_cons, List.sum_cons]
+    grind

@@ -326,3 +326,38 @@ must attach to a declaration (two stacked `/--` = parse error).
 StellarGate #625; the provable shape is the post-time check,
 inductive over posts); append-only/permutation invariance; idempotent
 posting; the extraction bridge (Aeneas/hax decision matrix).
+
+## Iteration 8 (2026-11-09) — i64 overflow: the post-time check is the theorem
+
+StellarGate #625's story, proved in both directions:
+
+- `per_entry_not_sum_bound`: **per-entry bounds do NOT bound partial
+  sums** — for any bound B > 0 and any target T, `(T.natAbs + 2)` posts
+  of +B exceed T (division-free witness; `T.natAbs` dodges the
+  variable-division opacity grind cannot see through).
+- `applyGuarded` / `runGuarded`: the post-time check — a post applies
+  only when the resulting balance stays in the operating window
+  `[lo, hi]`; rejection is a no-op.
+- `runGuarded_bounded`: **the window invariant** — induction over posts
+  carries the window from an in-window opening balance. THE overflow
+  theorem.
+- `runGuarded_i64_safe`: with `[lo, hi]` inside the i64 range, the
+  running balance is representable at every prefix.
+- `allAccepted` / `runGuarded_accepts_eq`: when every post is accepted,
+  the guarded runner is exactly the opening balance plus the §2 amount
+  projection's sum — the guard never distorts an accepted book.
+
+**Proof-engineering (new for this iteration)**: omega rejects goals
+whose atoms are typed through the `Amount` abbrev ("no usable
+constraints") — state helper theorems with plain `Int` binders (defeq
+to Amount for callers) and close with `grind` (4.35's Cooper LIA,
+abbrev-agnostic). grind cannot see through variable-division atoms
+(`B * (T / B)` is opaque to the spec of `T`) — pick witnesses without
+division. Cast-over-sum (`↑(m + 1)`) blocks `Int.mul_add`; use
+`Int.natCast_add` + `Int.add_mul` (core names: `mul_le_mul_of_nonneg_*`
+are the only mul-monotonicity lemmas). Scratch-file probes via
+`lake env lean` give seconds-cycles against the exact core.
+
+8/10 iterations green, 0 sorries. Next: It 9 append-only/permutation
+invariance + idempotent posting; It 10 the extraction bridge
+(Aeneas/hax decision matrix).
